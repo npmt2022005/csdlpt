@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cross-Model Query — Kevin Bacon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080c;--bg2:#0d0f16;--bg3:#13161f;--bg4:#1a1e2b;--bg5:#1f2435;
+  --line:rgba(255,255,255,.055);--line2:rgba(255,255,255,.1);--line3:rgba(255,255,255,.18);
+  --txt:#e2e8f5;--txt2:#8892a8;--txt3:#404858;--txt4:#2a3040;
+  --gf:#818cf8;--gf-d:rgba(129,140,248,.08);--gf-m:rgba(129,140,248,.22);--gf-b:rgba(129,140,248,.45);
+  --sf:#fb7185;--sf-d:rgba(251,113,133,.08);--sf-m:rgba(251,113,133,.22);--sf-b:rgba(251,113,133,.45);
+  --gr:#34d399;--gr-d:rgba(52,211,153,.08);--gr-m:rgba(52,211,153,.2);
+  --am:#fbbf24;--am-d:rgba(251,191,36,.08);--am-m:rgba(251,191,36,.2);
+  --cy:#22d3ee;--cy-d:rgba(34,211,238,.08);
+  --rd:#f87171;--rd-d:rgba(248,113,113,.08);
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Syne',sans-serif;
+  --r:6px;--r2:10px;--r3:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+
+/* ── LAYOUT ── */
+.shell{display:grid;grid-template-columns:188px 1fr;min-height:100vh}
+.sidebar{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.main{display:flex;flex-direction:column;overflow:hidden;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sb-head{padding:16px 14px 12px;border-bottom:1px solid var(--line)}
+.sb-brand{font-size:15px;font-weight:800;color:var(--txt);letter-spacing:-.3px;line-height:1}
+.sb-sub{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:3px;letter-spacing:.06em}
+.sb-badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:3px 8px;background:var(--gf-d);border:1px solid var(--gf-m);border-radius:20px;font-size:9.5px;color:var(--gf);font-family:var(--mono)}
+.sb-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--gf);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.sb-nav{padding:10px 0;flex:1}
+.sb-sec{font-size:9px;color:var(--txt4);padding:10px 14px 3px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono)}
+.ni{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;font-weight:500;color:var(--txt3);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .14s;position:relative}
+.ni:hover{color:var(--txt2);background:rgba(255,255,255,.018)}
+.ni.act{color:var(--txt);background:var(--bg3);border-left-color:var(--gf)}
+.ni-ico{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.sb-sep{height:1px;background:var(--line);margin:6px 14px}
+.sb-foot{padding:10px 14px;border-top:1px solid var(--line);font-size:10px;font-family:var(--mono);color:var(--txt3)}
+.sb-foot-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--gr)}
+.live-dot.dead{background:var(--rd);animation:pulse .8s infinite}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--bg2);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+.tb-title{font-size:13px;font-weight:700;color:var(--txt);letter-spacing:-.2px}
+.tb-sub{font-size:11px;color:var(--txt3);font-family:var(--mono);margin-left:2px}
+.tb-spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);padding:3px 9px;border-radius:20px;white-space:nowrap;font-weight:500;border:1px solid}
+.chip-gf{background:var(--gf-d);color:var(--gf);border-color:var(--gf-m)}
+.chip-sf{background:var(--sf-d);color:var(--sf);border-color:var(--sf-m)}
+.chip-gr{background:var(--gr-d);color:var(--gr);border-color:var(--gr-m)}
+.chip-am{background:var(--am-d);color:var(--am);border-color:var(--am-m)}
+.chip-rd{background:var(--rd-d);color:var(--rd);border-color:rgba(248,113,113,.22)}
+.chip-cy{background:var(--cy-d);color:var(--cy);border-color:rgba(34,211,238,.22)}
+.chip-line{background:transparent;color:var(--txt3);border-color:var(--line2)}
+
+/* ── CONTENT ── */
+.content{padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1}
+.page{display:none}.page.act{display:flex;flex-direction:column;gap:12px}
+
+/* ── STRATEGY STRIP ── */
+.strat-strip{display:flex;gap:0;border:1px solid var(--line2);border-radius:var(--r2);overflow:hidden;background:var(--bg3)}
+.stab{flex:1;padding:9px 0;text-align:center;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt3);transition:all .14s;font-family:var(--sans);letter-spacing:-.1px;border-right:1px solid var(--line)}
+.stab:last-child{border-right:none}
+.stab:hover{color:var(--txt2);background:rgba(255,255,255,.02)}
+.stab.t-gf{background:var(--gf-d);color:var(--gf)}
+.stab.t-sf{background:var(--sf-d);color:var(--sf)}
+
+/* ── CONTROLS ── */
+.controls{display:flex;align-items:flex-end;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r3);padding:12px 14px;flex-wrap:wrap}
+.cg{display:flex;flex-direction:column;gap:3px}
+.cl{font-size:9px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.08em}
+.ci{font-family:var(--mono);font-size:11.5px;background:var(--bg3);border:1px solid var(--line2);color:var(--txt);border-radius:var(--r);padding:5px 9px;outline:none;transition:border-color .14s;min-width:100px}
+.ci:focus{border-color:var(--gf-m)}
+.cs{font-family:var(--mono);font-size:11.5px;background:var(--bg3);border:1px solid var(--line2);color:var(--txt);border-radius:var(--r);padding:5px 9px;outline:none;cursor:pointer;min-width:76px}
+.run-btn{font-family:var(--sans);font-size:12px;font-weight:700;padding:7px 20px;background:var(--gf);color:#07080c;border:none;border-radius:var(--r);cursor:pointer;transition:all .14s;white-space:nowrap;letter-spacing:-.1px}
+.run-btn:hover{opacity:.88;transform:translateY(-1px)}.run-btn:active{transform:none}
+.run-btn.busy{opacity:.5;cursor:not-allowed;transform:none}
+.run-btn.sf-mode{background:var(--sf)}
+
+/* ── METRICS GRID ── */
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.mc{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:11px 13px;transition:border-color .2s;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,transparent);border-radius:2px 2px 0 0}
+.mc.gf-accent{--accent:var(--gf)}.mc.sf-accent{--accent:var(--sf)}.mc.gr-accent{--accent:var(--gr)}.mc.am-accent{--accent:var(--am)}
+.mc:hover{border-color:var(--line2)}
+.mc-l{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em}
+.mc-v{font-size:20px;font-weight:700;color:var(--txt);letter-spacing:-.6px;line-height:1}
+.mc-v sub{font-size:10px;font-weight:400;color:var(--txt3);margin-left:1px;letter-spacing:0}
+.mc-s{font-size:10px;color:var(--txt3);margin-top:3px;font-family:var(--mono)}
+.mc-badge{display:inline-flex;align-items:center;margin-top:4px}
+
+/* ── SINGLE NOTE PANEL ── */
+.note-panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r3);padding:12px 14px;display:flex;align-items:flex-start;gap:10px}
+.note-ico{font-size:14px;color:var(--am);flex-shrink:0;margin-top:1px}
+.note-body{font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.75}
+.note-body strong{color:var(--am)}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:6px}
+.ptitle{font-size:12px;font-weight:700;color:var(--txt);letter-spacing:-.1px}
+
+/* ── TWO-COL ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r3);padding:14px}
+.fullpanel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r3);padding:14px}
+
+/* ── BREAKDOWN BAR ── */
+.tbar-wrap{background:var(--bg3);border-radius:5px;height:20px;display:flex;overflow:hidden;gap:2px;margin-bottom:10px}
+.tseg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--mono);
+
+  padding: 0 4px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  min-width: 0;
+  max-width: 100%;
+
+  flex: 1 1 0; /* 🔥 fix tràn trong flex */
+
+  transition: width .5s ease;
+}
+.brow{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.bl{font-size:11px;color:var(--txt2);width:120px;flex-shrink:0;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btrack{flex:1;height:2px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.bfill{height:100%;border-radius:2px;transition:width .5s ease}
+.bv{font-size:11px;color:var(--txt2);min-width:52px;width:max-content;white-space:nowrap;text-align:right;flex-shrink:0;font-family:var(--mono)}
+.bv-unit{font-size:9px;color:var(--txt3)}
+.brow.tot{padding-top:6px;border-top:1px solid var(--line);margin-top:4px}
+.brow.tot .bl,.brow.tot .bv{font-weight:600;color:var(--txt)}
+.strat-insight{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:8px;line-height:1.7;padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:2px solid var(--gf)}
+
+/* ── COMPARE TABLE ── */
+.cmp-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.cmp-tbl th{text-align:left;font-size:9px;font-weight:600;color:var(--txt3);padding:0 10px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase}
+.cmp-tbl td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--txt);vertical-align:middle}
+.cmp-tbl tr:last-child td{border-bottom:none}
+.cmp-tbl tbody tr:hover td{background:rgba(255,255,255,.015)}
+.num-cell{font-family:var(--mono);font-size:11px;text-align:right}
+.winner-cell{font-family:var(--mono);font-size:10px;text-align:center}
+
+/* ── RESULT TABLE ── */
+.rtbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.rtbl th{text-align:left;font-size:9px;font-weight:600;color:var(--txt3);padding:0 8px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase}
+.rtbl td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--txt);vertical-align:middle}
+.rtbl tr:last-child td{border-bottom:none}
+.rtbl tbody tr:hover td{background:rgba(255,255,255,.015)}
+.avc{display:flex;align-items:center;gap:7px}
+.av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;flex-shrink:0;font-family:var(--mono)}
+.money{font-family:var(--mono);font-size:11px;color:var(--cy);text-align:right}
+
+/* ── QUERY CODE ── */
+.qcode{font-family:var(--mono);font-size:10.5px;color:var(--txt2);line-height:1.85;white-space:pre-wrap;overflow-x:auto;padding:12px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);max-height:240px;overflow-y:auto}
+.kw{color:var(--gf)}.fn{color:var(--cy)}.str{color:var(--am)}.nm{color:var(--gr)}.cm{color:var(--txt3);font-style:italic}
+.sf-mode .kw{color:var(--sf)}
+
+/* ── CHART ── */
+.chart-area{position:relative;height:180px;display:flex;align-items:flex-end;gap:14px;padding:0 10px 0;overflow:hidden}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.bar-val{font-size:10px;font-family:var(--mono)}
+.bar-body{width:60%;border-radius:4px 4px 0 0;position:relative;min-height:3px;transition:height .6s cubic-bezier(.34,1.56,.64,1)}
+.bar-lbl{font-size:10.5px;font-family:var(--mono);text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.chart-grid-line{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.04)}
+
+/* ── BENCHMARK PAGE ── */
+.bench-section{display:flex;flex-direction:column;gap:10px}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sc{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 13px;position:relative;overflow:hidden}
+.sc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--c,transparent)}
+.sc-l{font-size:9px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.sc-v{font-size:18px;font-weight:700;letter-spacing:-.5px;color:var(--txt)}
+.sc-v sub{font-size:10px;color:var(--txt3);font-weight:400}
+.sc-s{font-size:10px;font-family:var(--mono);color:var(--txt3);margin-top:3px}
+
+/* ── BENCH CONTROLS ── */
+.bcontrols{display:flex;gap:8px;align-items:flex-end;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r3);padding:12px 14px;flex-wrap:wrap}
+.run-bench-btn{font-family:var(--sans);font-size:11.5px;font-weight:700;padding:6px 18px;background:var(--bg3);color:var(--am);border:1px solid var(--am-m);border-radius:var(--r);cursor:pointer;transition:all .14s;letter-spacing:-.1px}
+.run-bench-btn:hover{background:var(--am-d)}.run-bench-btn.busy{opacity:.5;cursor:not-allowed}
+.progress-bar{height:2px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-top:4px;display:none}
+.progress-fill{height:100%;background:var(--am);border-radius:2px;transition:width .2s;width:0}
+
+/* ── RUN HISTORY ── */
+.history-grid{display:flex;gap:4px;align-items:flex-end;height:48px}
+.hbar{flex:1;border-radius:2px 2px 0 0;min-height:3px;transition:height .3s ease}
+.history-lbls{display:flex;justify-content:space-between;font-size:9px;font-family:var(--mono);color:var(--txt3);margin-top:2px}
+
+/* ── INTERMEDIATE SET VISUAL ── */
+.inter-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inter-block{background:var(--bg3);border-radius:var(--r2);padding:12px}
+.inter-label{font-size:10px;font-family:var(--mono);color:var(--txt3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.inter-val{font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:-.6px}
+.inter-bar-bg{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.inter-bar-fill{height:100%;border-radius:3px;transition:width .7s ease}
+.inter-desc{font-size:10px;font-family:var(--mono);color:var(--txt3);margin-top:5px;line-height:1.6}
+
+/* ── SCATTER-LIKE TABLE ── */
+.run-log{width:100%;border-collapse:collapse;font-size:10.5px}
+.run-log th{font-size:9px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;padding:0 8px 6px;border-bottom:1px solid var(--line);text-align:right}
+.run-log th:first-child{text-align:left}
+.run-log td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);text-align:right;color:var(--txt2)}
+.run-log td:first-child{text-align:left;color:var(--txt3)}
+.run-log tr:hover td{background:rgba(255,255,255,.012)}
+.run-log tr:last-child td{border-bottom:none}
+.run-log .best-row td{color:var(--gr) !important}
+.run-log .worst-row td{color:var(--rd) !important}
+
+/* ── MISC ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;color:var(--txt3);gap:6px}
+.empty-ico{font-size:24px;opacity:.35}.empty-txt{font-size:11px;font-family:var(--mono)}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(129,140,248,.2);border-top-color:var(--gf);border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:18px;right:18px;padding:9px 14px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r2);font-size:11px;font-family:var(--mono);color:var(--txt2);z-index:999;display:none;animation:fadein .18s}
+@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.kbtn{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--txt3);cursor:pointer;background:transparent;font-family:var(--mono);transition:all .13s}
+.kbtn:hover{color:var(--txt2);border-color:var(--line3)}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+.divider{height:1px;background:var(--line);margin:2px 0}
+.section-hd{font-size:10px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-head">
+    <div class="sb-brand">Cross-Model<br>Query Lab</div>
+    <div class="sb-sub">Kevin Bacon · v3.0</div>
+    <div class="sb-badge"><span class="sb-badge-dot"></span>2 strategies</div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-sec">Pages</div>
+    <a class="ni act" id="nav-dash" href="#" onclick="navTo(event,'dash')"><span class="ni-ico">◈</span>Dashboard</a>
+    <a class="ni" id="nav-bench" href="#" onclick="navTo(event,'bench')"><span class="ni-ico">◎</span>Benchmark</a>
+    <div class="sb-sep"></div>
+    <div class="sb-sec">Strategy</div>
+    <a class="ni" href="#" onclick="setTab(event,'gf')"><span class="ni-ico" style="color:var(--gf)">⬡</span><span style="color:var(--gf)">Graph-first</span></a>
+    <a class="ni" href="#" onclick="setTab(event,'sf')"><span class="ni-ico" style="color:var(--sf)">⊠</span><span style="color:var(--sf)">SQL-first</span></a>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-foot-row"><div class="live-dot" id="sys-dot"></div><span id="sys-status">Demo mode</span></div>
+    <div style="color:var(--txt4);font-size:9px">Özsu &amp; Valduriez framework</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+<div class="topbar">
+  <div>
+    <span class="tb-title">Kevin Bacon</span>
+    <span class="tb-sub">— cross-model join</span>
+  </div>
+  <div class="tb-spacer"></div>
+  <span class="chip chip-line" id="api-chip">⬤ checking API…</span>
+  <span class="chip" id="strat-chip" style="background:var(--gf-d);color:var(--gf);border-color:var(--gf-m)">⬡ Graph-first</span>
+  <span class="chip chip-line" id="time-chip">— ms</span>
+  <span id="spin-top" style="display:none"><span class="spinner"></span></span>
+</div>
+<div class="content">
+
+<!-- ═══════════════════════════════════ DASHBOARD PAGE ═══════════════════════ -->
+<div class="page act" id="page-dash">
+
+  <!-- Strategy tabs -->
+  <div class="strat-strip">
+    <div class="stab t-gf" id="tab-gf" onclick="setTab(event,'gf')">⬡ &nbsp;Graph-first</div>
+    <div class="stab" id="tab-sf" onclick="setTab(event,'sf')">⊠ &nbsp;SQL-first</div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="cg"><label class="cl">Actor</label>
+      <input type="text" id="c-actor" class="ci" value="Kevin Bacon" style="min-width:130px">
+    </div>
+    <div class="cg"><label class="cl">BFS Depth</label>
+      <select id="c-depth" class="cs">
+        <option value="1">1 hop</option>
+        <option value="2" selected>2 hops</option>
+        <option value="3">3 hops</option>
+      </select>
+    </div>
+    <div class="cg"><label class="cl">Min Revenue ($M)</label>
+      <input type="number" id="c-rev" class="ci" value="100" min="0" max="5000" step="10" style="min-width:80px">
+    </div>
+    <div class="cg"><label class="cl">Result Limit</label>
+      <select id="c-limit" class="cs">
+        <option value="10">10</option>
+        <option value="25" selected>25</option>
+        <option value="50">50</option>
+      </select>
+    </div>
+    <div class="cg"><label class="cl">API URL</label>
+      <input type="text" id="c-api" class="ci" value="http://localhost:8000" style="min-width:150px">
+    </div>
+    <button class="run-btn" id="run-btn" onclick="runQuery()">▶ Run Query</button>
+  </div>
+
+  <!-- 4 Metric cards — chỉ các metric có ý nghĩa trong single-node -->
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="mc gf-accent" id="mc-total">
+      <div class="mc-l">Response Time</div>
+      <div class="mc-v" id="m-total">—<sub> ms</sub></div>
+      <div class="mc-s" id="m-strat-lbl">wall-clock t_total</div>
+    </div>
+    <div class="mc">
+      <div class="mc-l">CPU Time</div>
+      <div class="mc-v" id="m-cpu">—<sub> ms</sub></div>
+      <div class="mc-s">process_time (O&amp;V CPU cost)</div>
+    </div>
+    <div class="mc am-accent">
+      <div class="mc-l">Intermediate Set</div>
+      <div class="mc-v" id="m-inter">—</div>
+      <div class="mc-s">inter_size — comm. cost proxy</div>
+    </div>
+    <div class="mc gr-accent">
+      <div class="mc-l">Actors Found</div>
+      <div class="mc-v" id="m-actors">—</div>
+      <div class="mc-s" id="m-actors-s">result_count</div>
+    </div>
+  </div>
+
+  <!-- Single-node note — Özsu & Valduriez framework -->
+  <div class="note-panel">
+    <div class="note-ico">⚠</div>
+    <div class="note-body">
+      <strong>Single-node environment — Özsu &amp; Valduriez (2011) framework</strong><br>
+      Total Cost = CPU cost + I/O cost + Communication cost<br>
+      <strong style="color:var(--gr)">CPU cost</strong> ≈ cpu_time_ms (process_time) &nbsp;·&nbsp; metric chính để so sánh &nbsp;·&nbsp;
+      <strong style="color:var(--txt3)">I/O cost</strong> ≈ 0 (SQLite RAM cache) &nbsp;·&nbsp;
+      <strong style="color:var(--txt3)">Comm. cost</strong> ≈ 0 (same process) &nbsp;·&nbsp;
+      → <strong style="color:var(--am)">Intermediate set size</strong> dùng làm proxy giải thích performance gap giữa 2 chiến lược
+    </div>
+  </div>
+
+  <!-- Execution time chart + breakdown -->
+  <div class="two-col">
+    <!-- Bar chart -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Exec time — GF vs SF</span>
+        <span id="chart-sub" style="font-size:9.5px;font-family:var(--mono);color:var(--txt3)">run query first</span>
+      </div>
+      <div class="chart-area" id="chart-area">
+        <div class="empty-state" id="chart-empty" style="position:absolute;inset:0;width:100%">
+          <div class="empty-ico">▣</div>
+          <div class="empty-txt">run a query to populate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step breakdown -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Step breakdown</span>
+        <span class="chip" id="bd-chip" style="background:var(--gf-d);color:var(--gf);border-color:var(--gf-m)">Graph-first</span>
+      </div>
+      <div class="tbar-wrap" id="tbar">
+        <div class="tseg" style="width:100%;background:var(--bg4);color:var(--txt3)">run query first</div>
+      </div>
+      <div id="bd-rows">
+        <div class="empty-state" style="padding:16px">
+          <div class="empty-txt">no data yet</div>
+        </div>
+      </div>
+      <div class="strat-insight" id="strat-insight" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Intermediate set comparison -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Communication Cost — Intermediate Set Size</span>
+      <span style="font-size:9.5px;font-family:var(--mono);color:var(--txt3)">yếu tố quyết định hiệu năng</span>
+    </div>
+    <div class="inter-compare">
+      <div class="inter-block">
+        <div class="inter-label">Graph-first — sau BFS</div>
+        <div class="inter-val" id="inter-gf" style="color:var(--gf)">—</div>
+        <div class="inter-bar-bg"><div class="inter-bar-fill" id="inter-gf-bar" style="background:var(--gf);width:0%"></div></div>
+        <div class="inter-desc" id="inter-gf-desc">actor+movie IDs từ graph traversal → truyền sang SQL filter</div>
+      </div>
+      <div class="inter-block">
+        <div class="inter-label">⊠ SQL-first — sau WHERE filter</div>
+        <div class="inter-val" id="inter-sf" style="color:var(--sf)">—</div>
+        <div class="inter-bar-bg"><div class="inter-bar-fill" id="inter-sf-bar" style="background:var(--sf);width:0%"></div></div>
+        <div class="inter-desc" id="inter-sf-desc">movie_ids đủ điều kiện revenue → truyền sang graph lookup</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.7;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:2px solid var(--am)">
+      <span id="inter-analysis">Chạy query để xem phân tích intermediate set...</span>
+    </div>
+  </div>
+
+  <!-- Result table -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Query results</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="chip chip-am" id="rows-tag" style="background:var(--am-d);color:var(--am);border-color:var(--am-m)">0 rows</span>
+      </div>
+    </div>
+    <table class="rtbl">
+      <thead><tr>
+        <th style="width:28%">Actor</th>
+        <th style="width:28%">Movie</th>
+        <th style="width:18%;text-align:right">Revenue</th>
+        <th style="width:14%;text-align:center">Bacon #</th>
+        <th style="width:12%;text-align:center">Year</th>
+      </tr></thead>
+      <tbody id="rtbody">
+        <tr><td colspan="5"><div class="empty-state"><div class="empty-ico">□</div><div class="empty-txt">configure and click Run Query</div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Query code -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Generated query — <span id="qlang" style="color:var(--gf)">Cypher + SQL</span></span>
+      <button class="kbtn" onclick="copyQ()">copy</button>
+    </div>
+    <pre class="qcode" id="qcode">-- select a strategy tab and run</pre>
+  </div>
+
+</div><!-- /page-dash -->
+
+<!-- ═══════════════════════════════════ BENCHMARK PAGE ═══════════════════════ -->
+<div class="page" id="page-bench">
+
+  <!-- Bench controls — khớp đúng params của /benchmark/bacon -->
+  <div class="bcontrols">
+    <div class="cg"><label class="cl">Actor</label>
+      <input type="text" id="b-actor" class="ci" value="Kevin Bacon" style="min-width:120px">
+    </div>
+    <div class="cg"><label class="cl">BFS Depth</label>
+      <select id="b-depth" class="cs">
+        <option value="1">1 hop</option>
+        <option value="2" selected>2 hops</option>
+        <option value="3">3 hops</option>
+      </select>
+    </div>
+    <div class="cg"><label class="cl">Min Revenue ($M)</label>
+      <input type="number" id="b-rev" class="ci" value="100" min="0" max="5000" step="10" style="min-width:76px">
+    </div>
+    <div class="cg"><label class="cl">Runs (n)</label>
+      <select id="b-runs" class="cs">
+        <option value="5">5 runs</option>
+        <option value="10" selected>10 runs</option>
+        <option value="20">20 runs</option>
+      </select>
+    </div>
+    <div class="cg" style="gap:3px">
+      <button class="run-bench-btn" id="bench-btn" onclick="runBenchmark()">◎ Run Benchmark</button>
+      <div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill"></div></div>
+    </div>
+    <div style="margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.65">
+      API: <span id="bench-api-url" style="color:var(--txt2)">http://localhost:8000</span><br>
+      endpoint: GET /benchmark/bacon
+    </div>
+  </div>
+
+  <!-- 4 stat cards: mean/std/p95/winner -->
+  <div class="stat-cards">
+    <div class="sc" style="--c:var(--gf)">
+      <div class="sc-l">GF mean ± std</div>
+      <div class="sc-v" id="bs-gf-mean">—<sub> ms</sub></div>
+      <div class="sc-s" id="bs-gf-std">std: —</div>
+    </div>
+    <div class="sc" style="--c:var(--sf)">
+      <div class="sc-l">SF mean ± std</div>
+      <div class="sc-v" id="bs-sf-mean">—<sub> ms</sub></div>
+      <div class="sc-s" id="bs-sf-std">std: —</div>
+    </div>
+    <div class="sc" style="--c:var(--am)">
+      <div class="sc-l">P95 — GF / SF</div>
+      <div class="sc-v" id="bs-p95">—</div>
+      <div class="sc-s">95th percentile</div>
+    </div>
+    <div class="sc" style="--c:var(--gr)">
+      <div class="sc-l">Winner</div>
+      <div class="sc-v" id="bs-winner" style="font-size:14px">—</div>
+      <div class="sc-s" id="bs-winner-s">run benchmark first</div>
+    </div>
+  </div>
+
+  <!-- All metrics table: GF vs SF -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Full metric comparison — Graph-first vs SQL-first</span>
+      <span class="chip chip-line" id="bench-scenario-chip">—</span>
+    </div>
+    <table class="cmp-tbl">
+      <thead><tr>
+        <th style="width:28%">Metric</th>
+        <th style="width:14%;text-align:right">GF value</th>
+        <th style="width:14%;text-align:right">SF value</th>
+        <th style="width:14%;text-align:center">Winner</th>
+        <th style="text-align:left">Note</th>
+      </tr></thead>
+      <tbody id="cmp-tbody">
+        <tr><td colspan="5"><div class="empty-state"><div class="empty-txt">run benchmark to populate</div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Response time chart (multi-run) -->
+  <div class="two-col">
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Response time — all runs</span>
+        <span style="font-size:9.5px;font-family:var(--mono);color:var(--txt3)" id="run-count-lbl">0 runs</span>
+      </div>
+      <div style="position:relative;height:160px;display:flex;align-items:flex-end;gap:3px;padding:0 4px;overflow:hidden" id="multi-chart">
+        <div class="empty-state" id="multi-empty" style="position:absolute;inset:0;width:100%">
+          <div class="empty-txt">awaiting benchmark</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:6px;font-size:10px;font-family:var(--mono);color:var(--txt3)">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--gf);display:inline-block"></span>Graph-first</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--sf);display:inline-block"></span>SQL-first</span>
+      </div>
+    </div>
+
+    <!-- Intermediate set per run -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ptitle">Intermediate set size</span>
+        <span style="font-size:9.5px;font-family:var(--mono);color:var(--txt3)">comm. cost proxy</span>
+      </div>
+      <div class="inter-compare" style="gap:8px" id="bench-inter">
+        <div class="inter-block">
+          <div class="inter-label">GF inter_size</div>
+          <div class="inter-val" id="bi-gf" style="color:var(--gf)">—</div>
+          <div class="inter-bar-bg"><div class="inter-bar-fill" id="bi-gf-bar" style="background:var(--gf);width:0%"></div></div>
+        </div>
+        <div class="inter-block">
+          <div class="inter-label">SF inter_size</div>
+          <div class="inter-val" id="bi-sf" style="color:var(--sf)">—</div>
+          <div class="inter-bar-bg"><div class="inter-bar-fill" id="bi-sf-bar" style="background:var(--sf);width:0%"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="section-hd">Run history (last 8)</div>
+        <div class="history-grid" id="hist-grid">
+          <div class="hbar" style="background:var(--bg4);height:30%"></div>
+          <div class="hbar" style="background:var(--bg4);height:50%"></div>
+          <div class="hbar" style="background:var(--bg4);height:40%"></div>
+          <div class="hbar" style="background:var(--bg4);height:60%"></div>
+        </div>
+        <div class="history-lbls" id="hist-lbls"><span>—</span><span>—</span><span>—</span><span>—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-run log table — khớp đúng fields từ backend /benchmark/bacon -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Per-run log — raw data từ API</span>
+      <span style="font-size:9.5px;font-family:var(--mono);color:var(--txt3)">mỗi hàng = 1 run · GF / <span style="color:var(--sf)">SF</span></span>
+    </div>
+    <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+      <table class="run-log" id="run-log-tbl">
+        <thead><tr>
+          <th style="text-align:left;width:50px">Run</th>
+          <th>t1_ms</th>
+          <th>t2_ms</th>
+          <th>t3_ms</th>
+          <th>t_total_ms</th>
+          <th>cpu_ms</th>
+          <th>inter_size</th>
+          <th>mem_mb</th>
+          <th>result_count</th>
+        </tr></thead>
+        <tbody id="run-log-body">
+          <tr><td colspan="9"><div class="empty-state" style="padding:16px"><div class="empty-txt">awaiting benchmark run</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Özsu & Valduriez cost analysis -->
+  <div class="fullpanel">
+    <div class="ph">
+      <span class="ptitle">Total Cost analysis — Özsu &amp; Valduriez framework</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="cost-analysis">
+      <div style="background:var(--bg3);border-radius:var(--r2);padding:12px;border-left:2px solid var(--gf)">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--gf);margin-bottom:6px">⬡ GRAPH-FIRST</div>
+        <div id="ca-gf" style="font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.8">run benchmark first...</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--r2);padding:12px;border-left:2px solid var(--sf)">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--sf);margin-bottom:6px">⊠ SQL-FIRST</div>
+        <div id="ca-sf" style="font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.8">run benchmark first...</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;font-family:var(--mono);color:var(--txt3);line-height:1.75;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:2px solid var(--am)">
+      <strong style="color:var(--am)">Kết luận theo lý thuyết: </strong><span id="ca-conclusion">Chạy benchmark để xem kết luận tự động...</span>
+    </div>
+  </div>
+
+</div><!-- /page-bench -->
+
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────
+var S={
+  tab:'gf',
+  page:'dash',
+  apiBase:'http://localhost:8000',
+  bench:null,
+  results:[],
+  hist:[],
+  benchRuns:[]
+};
+
+// ─────────────────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────────────────
+function navTo(e,id){
+  e.preventDefault();
+  ['dash','bench'].forEach(function(p){
+    document.getElementById('page-'+p).classList.toggle('act',p===id);
+    document.getElementById('nav-'+p).classList.toggle('act',p===id);
+  });
+  S.page=id;
+}
+
+// ─────────────────────────────────────────────────────────
+//  STRATEGY TAB
+// ─────────────────────────────────────────────────────────
+function setTab(e,t){
+  if(e)e.preventDefault();
+  S.tab=t;
+  document.getElementById('tab-gf').className='stab'+(t==='gf'?' t-gf':'');
+  document.getElementById('tab-sf').className='stab'+(t==='sf'?' t-sf':'');
+  var isGF=t==='gf';
+  var col=isGF?'var(--gf)':'var(--sf)';
+  var colD=isGF?'var(--gf-d)':'var(--sf-d)';
+  var colM=isGF?'var(--gf-m)':'var(--sf-m)';
+  var label=isGF?'⬡ Graph-first':'⊠ SQL-first';
+  var sc=document.getElementById('strat-chip');
+  sc.style.background=colD;sc.style.color=col;sc.style.borderColor=colM;sc.textContent=label;
+  document.getElementById('m-strat-lbl').textContent=isGF?'wall-clock t_total (GF)':'wall-clock t_total (SF)';
+  document.getElementById('qlang').style.color=col;
+  document.getElementById('qlang').textContent=isGF?'Cypher → SQL':'SQL → Graph';
+  var bc=document.getElementById('bd-chip');
+  bc.style.background=colD;bc.style.color=col;bc.style.borderColor=colM;bc.textContent=label;
+  var mc=document.getElementById('m-total');mc.parentElement.className='mc'+(isGF?' gf-accent':' sf-accent');
+  document.getElementById('run-btn').className='run-btn'+(isGF?'':' sf-mode');
+  updateQCode();
+  if(S.bench)redrawAll();
+}
+
+// ─────────────────────────────────────────────────────────
+//  CONTROLS
+// ─────────────────────────────────────────────────────────
+function ctrl(){
+  return{
+    actor:document.getElementById('c-actor').value.trim()||'Kevin Bacon',
+    depth:document.getElementById('c-depth').value,
+    rev:(parseInt(document.getElementById('c-rev').value)||100)*1e6,
+    limit:document.getElementById('c-limit').value
+  };
+}
+
+// ─────────────────────────────────────────────────────────
+//  QUERY CODE
+// ─────────────────────────────────────────────────────────
+function kw(s){return'<span class="kw">'+s+'</span>'}
+function fn(s){return'<span class="fn">'+s+'</span>'}
+function st(s){return'<span class="str">'+s+'</span>'}
+function nm(s){return'<span class="nm">'+s+'</span>'}
+function cm(s){return'<span class="cm">-- '+s+'</span>'}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function buildQuery(t,c){
+  var a=c.actor,d=c.depth,r=(c.rev/1e6).toLocaleString()+'M',l=c.limit;
+  if(t==='gf') return[
+    cm('═══ GRAPH-FIRST strategy ═══'),
+    cm('Step 1 — Graph traversal (t1): BFS in NetworkX/Neo4j'),
+    kw('MATCH')+' (kb:'+fn('Actor')+'{name:'+st('"'+esc(a)+'"')+'})',
+    '      -[:'+kw('ACTED_IN')+'*1..'+nm(d)+']->(co:'+fn('Actor')+')',
+    kw('RETURN DISTINCT')+'  co.actor_id '+kw('AS')+' id',
+    cm('→ output: ~100–500 IDs  ← small intermediate set'),
+    '',
+    cm('Step 2 — SQL filter (t2): revenue filter on small ID set'),
+    kw('SELECT')+'  a.name, m.title, m.revenue, cr.depth',
+    kw('FROM')+'    actors a',
+    kw('JOIN')+'    cast_rel cr  '+kw('ON')+' cr.actor_id = a.id',
+    kw('JOIN')+'    movies   m   '+kw('ON')+' m.id = cr.movie_id',
+    kw('WHERE')+'   a.id '+kw('IN')+' (:bacon_ids)    '+cm('← cheap: small IN list'),
+    '  '+kw('AND')+' m.revenue > '+nm(r),
+    kw('ORDER BY')+'  m.revenue '+kw('DESC')+' '+kw('LIMIT')+' '+nm(l)+';',
+    '',
+    cm('Step 3 — Intersection (t3): set_a ∩ set_b  O(n)')
+  ].join('\n');
+
+  return[
+    cm('═══ SQL-FIRST strategy ═══'),
+    cm('Step 1 — SQL filter (t1): scan ALL movies, get actor IDs'),
+    kw('SELECT DISTINCT')+'  cr.actor_id',
+    kw('FROM')+'  cast_rel cr',
+    kw('JOIN')+'  movies m '+kw('ON')+' m.id = cr.movie_id',
+    kw('WHERE')+'  m.revenue > '+nm(r)+';',
+    cm('→ output: 5,000–15,000 actor IDs  ← LARGE intermediate set!'),
+    '',
+    cm('Step 2 — Graph lookup (t2): N × BFS calls (BOTTLENECK)'),
+    kw('MATCH')+'  path = (:'+fn('Actor')+'{id: $id})',
+    '             -[:'+kw('ACTED_IN')+'*1..'+nm(d)+']->',
+    '             (:'+fn('Actor')+'{name:'+st('"'+esc(a)+'"')+'})',
+    kw('RETURN')+'  length(path) '+kw('AS')+' bacon_num',
+    cm('→ O(N × BFS): 10K actors × 0.04ms = 400ms bottleneck'),
+    '',
+    cm('Step 3 — Intersection (t3): set_a ∩ set_b  O(n)')
+  ].join('\n');
+}
+function updateQCode(){var c=ctrl();document.getElementById('qcode').innerHTML=buildQuery(S.tab,c);}
+
+// ─────────────────────────────────────────────────────────
+//  API HEALTH
+// ─────────────────────────────────────────────────────────
+async function checkHealth(){
+  var base=document.getElementById('c-api').value.trim();S.apiBase=base;
+  try{
+    var r=await fetch(base+'/health',{signal:AbortSignal.timeout(3000)});
+    if(r.ok){setConn(true);}else setConn(false);
+  }catch(e){setConn(false);}
+}
+function setConn(ok){
+  var chip=document.getElementById('api-chip');
+  var dot=document.getElementById('sys-dot');
+  var st=document.getElementById('sys-status');
+  if(ok){
+    chip.textContent='⬤ API connected';chip.style.color='var(--gr)';
+    dot.className='live-dot';st.textContent='API healthy';
+  }else{
+    chip.textContent='⬤ API offline — mock';chip.style.color='var(--txt3)';
+    dot.className='live-dot dead';st.textContent='Demo mode';
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  MOCK DATA
+// ─────────────────────────────────────────────────────────
+function mockBench(){
+  var gfMs=110+Math.random()*60;
+  var sfMs=gfMs*(4+Math.random()*4);
+  return{
+    gf:{
+      t_total:Math.round(gfMs),
+      t1:Math.round(gfMs*.52),
+      t2:Math.round(gfMs*.35),
+      t3:Math.round(gfMs*.13),
+      cpu:Math.round(gfMs*.68),
+      inter_size:Math.floor(180+Math.random()*320),
+      rows_scanned:Math.floor(180+Math.random()*320),
+      mem_mb:(0.8+Math.random()*1.2).toFixed(2)
+    },
+    sf:{
+      t_total:Math.round(sfMs),
+      t1:Math.round(sfMs*.18),
+      t2:Math.round(sfMs*.72),
+      t3:Math.round(sfMs*.10),
+      cpu:Math.round(sfMs*.55),
+      inter_size:Math.floor(5000+Math.random()*10000),
+      rows_scanned:Math.floor(50000+Math.random()*50000),
+      mem_mb:(3+Math.random()*5).toFixed(2)
+    }
+  };
+}
+
+function mockData(c,bm){
+  var pool=[
+    {name:'Tom Hanks',movie:'Forrest Gump',revenue:678e6,year:1994,bacon:1},
+    {name:'Keira Knightley',movie:'Pirates of Caribbean',revenue:654e6,year:2003,bacon:2},
+    {name:'Julia Roberts',movie:'Pretty Woman',revenue:463e6,year:1990,bacon:1},
+    {name:'Denzel Washington',movie:'Philadelphia',revenue:206e6,year:1993,bacon:1},
+    {name:'Gene Hackman',movie:'The Firm',revenue:270e6,year:1993,bacon:2},
+    {name:'Matt Damon',movie:'Good Will Hunting',revenue:225e6,year:1997,bacon:2},
+    {name:'Gary Oldman',movie:'Air Force One',revenue:315e6,year:1997,bacon:1},
+    {name:'Robin Wright',movie:'Forrest Gump',revenue:678e6,year:1994,bacon:2},
+    {name:'Ed Harris',movie:'The Truman Show',revenue:264e6,year:1998,bacon:1},
+    {name:'Meg Ryan',movie:'You\'ve Got Mail',revenue:251e6,year:1998,bacon:2}
+  ].filter(function(r){return r.revenue>=c.rev&&r.bacon<=parseInt(c.depth)}).slice(0,parseInt(c.limit));
+  var b=bm[S.tab];
+  pool.forEach(function(r){r.cpu_ms=(b.cpu/pool.length).toFixed(1);});
+  return{results:pool,actors_found:pool.length+(Math.floor(Math.random()*180+40))};
+}
+
+// ─────────────────────────────────────────────────────────
+//  RUN QUERY — gọi /query/bacon, map đúng backend response
+// ─────────────────────────────────────────────────────────
+async function runQuery(){
+  var c=ctrl(),btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.classList.add('busy');btn.textContent='Running…';
+  document.getElementById('spin-top').style.display='inline-block';
+  try{
+    var url=S.apiBase+'/query/bacon?'+new URLSearchParams({
+      actor: c.actor,
+      depth: c.depth,
+      min_revenue: c.rev,
+      limit: c.limit,
+      strategy: S.tab
+    });
+    var r=await fetch(url,{signal:AbortSignal.timeout(30000)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var data=await r.json();
+    // Backend trả: {summary, execution_breakdown, results}
+    // Chuẩn hoá thành shape {gf:{...}, sf:{...}} cho cả 2 chiến lược
+    var bm = normalizeSingleQueryResponse(data, S.tab);
+    handleResult(data, bm);
+  }catch(err){
+    toast('API offline — showing mock data');
+    var bm=mockBench();
+    var data=mockData(c,bm);
+    data.benchmark=bm;
+    handleResult(data,bm);
+  }finally{
+    btn.disabled=false;btn.classList.remove('busy');btn.textContent='▶ Run Query';
+    document.getElementById('spin-top').style.display='none';
+  }
+}
+
+// Chuẩn hoá response từ /query/bacon thành shape {gf, sf}
+// Backend chỉ trả kết quả 1 chiến lược → mock chiến lược kia để vẽ chart
+function normalizeSingleQueryResponse(data, tab){
+  var bd = data.execution_breakdown || {};
+  var current = {
+    t_total: data.summary.total_exec_time_ms || 0,
+    t1: tab==='gf' ? (bd.graph_bfs_ms||0) : (bd.sql_filter_ms||0),
+    t2: tab==='gf' ? (bd.sql_filter_ms||0) : (bd.graph_bfs_ms||0),
+    t3: bd.intersection_ms || 0,
+    cpu: bd.cpu_time_ms || 0,
+    inter_size: bd.intermediate_set_size || 0,
+    mem_mb: 0,
+    result_count: (data.results||[]).length
+  };
+  // Chiến lược kia dùng mock để chart vẫn vẽ được
+  var other = mockBench()[tab==='gf'?'sf':'gf'];
+  return tab==='gf' ? {gf:current, sf:other} : {gf:other, sf:current};
+}
+
+function handleResult(data,bm){
+  S.bench=bm;S.results=data.results||[];
+  var b=bm[S.tab];
+  // 4 metric cards — chỉ những gì có ý nghĩa
+  ih('m-total',b.t_total+'<sub> ms</sub>');
+  ih('m-cpu',(b.cpu||0)+'<sub> ms</sub>');
+  ih('m-inter',(b.inter_size||0).toLocaleString());
+  ih('m-actors',(data.summary?data.summary.actors_found:null)||S.results.length);
+  document.getElementById('m-actors-s').textContent='depth '+ctrl().depth+' hops';
+  // time chip
+  var tc=document.getElementById('time-chip');
+  tc.textContent=b.t_total+' ms';
+  tc.className='chip '+(b.t_total<300?'chip-gr':b.t_total<800?'chip-am':'chip-rd');
+  document.getElementById('chart-sub').textContent=ctrl().actor+' · depth '+ctrl().depth;
+  S.hist.push(b.t_total);if(S.hist.length>8)S.hist=S.hist.slice(-8);
+  redrawAll();
+  renderTable(S.results);
+}
+
+function redrawAll(){
+  if(!S.bench)return;
+  var b = S.bench[S.tab];
+  ih('m-total', b.t_total + '<sub> ms</sub>');
+  ih('m-cpu', b.cpu + '<sub> ms</sub>');
+  ih('m-inter', b.inter_size.toLocaleString());
+  drawChart(S.bench);
+  updateBreakdown(S.tab,S.bench);
+  updateInterSet(S.bench);
+}
+
+// ─────────────────────────────────────────────────────────
+//  CHART
+// ─────────────────────────────────────────────────────────
+function drawChart(bm){
+  var area=document.getElementById('chart-area');
+  document.getElementById('chart-empty').style.display='none';
+  area.querySelectorAll('.bar-col').forEach(function(e){e.remove();});
+  var vals=[
+    {key:'gf',label:'Graph-first',ms:bm.gf.t_total,color:'var(--gf)'},
+    {key:'sf',label:'SQL-first',ms:bm.sf.t_total,color:'var(--sf)'}
+  ];
+  var maxMs=Math.max(vals[0].ms,vals[1].ms)||1,maxH=140;
+  vals.forEach(function(v){
+    var h=Math.max(v.ms/maxMs*maxH,4);
+    var isA=S.tab===v.key;
+    var col=document.createElement('div');
+    col.className='bar-col';
+    col.innerHTML='<div class="bar-val" style="color:'+v.color+';font-weight:'+(isA?700:400)+'">'+v.ms+'ms</div>'
+      +'<div class="bar-body" style="height:'+h+'px;background:'+v.color+';opacity:'+(isA?1:.32)+'"></div>'
+      +'<div class="bar-lbl" style="color:'+(isA?v.color:'var(--txt3)')+';font-weight:'+(isA?600:400)+'">'+v.label+'</div>';
+    area.appendChild(col);
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+//  BREAKDOWN
+// ─────────────────────────────────────────────────────────
+var BD={
+  gf:[
+    {l:'Graph BFS',key:'t1',c:'var(--gf)'},
+    {l:'SQL filter',key:'t2',c:'var(--cy)'},
+    {l:'Intersection',key:'t3',c:'var(--gr)'}
+  ],
+  sf:[
+    {l:'SQL scan',key:'t1',c:'var(--cy)'},
+    {l:'Graph Lookup',key:'t2',c:'var(--sf)'},
+    {l:'Intersection',key:'t3',c:'var(--gr)'}
+  ]
+};
+// var INSIGHTS={
+//   gf:'▸ Graph BFS (t1) dominates when dataset is large.\n▸ Intermediate set small (~200–500 IDs) → SQL WHERE IN cheap.\n▸ Best strategy when graph is sparse or dataset < 3k nodes.',
+//   sf:'▸ SQL scan (t1) fast, but returns 5k–15k actor candidates.\n▸ N×BFS lookups (t2) = bottleneck — O(N×BFS).\n▸ Avoid SQL-first on large graphs; use when revenue selectivity > 80%.'
+// };
+function updateBreakdown(t,bm){
+  var b=bm[t],defs=BD[t];
+  var tbar=document.getElementById('tbar');
+  tbar.innerHTML=defs.map(function(d){
+    var pct=Math.round(b[d.key]/b.t_total*100);
+    return'<div class="tseg" style="width:'+pct+'%;background:'+d.c+'22;color:'+d.c+'">'+d.l+' '+b[d.key]+'ms</div>';
+  }).join('');
+  var maxV=Math.max(b.t1,b.t2,b.t3);
+  document.getElementById('bd-rows').innerHTML=defs.map(function(d){
+    var pct=Math.round(b[d.key]/maxV*100);
+    return'<div class="brow"><span class="bl">'+d.l+'</span>'
+      +'<div class="btrack"><div class="bfill" style="width:'+pct+'%;background:'+d.c+'"></div></div>'
+      +'<span class="bv">'+b[d.key]+' <span class="bv-unit">ms</span></span></div>';
+  }).join('')
+  +'<div class="brow tot"><span class="bl">t_total</span>'
+  +'<div class="btrack"><div class="bfill" style="width:100%;background:'+(t==='gf'?'var(--gf)':'var(--sf)')+';opacity:.25"></div></div>'
+  +'<span class="bv">'+b.t_total+' <span class="bv-unit">ms</span></span></div>'
+  +'<div class="brow"><span class="bl" style="color:var(--txt3)">cpu_time</span>'
+  +'<div class="btrack"><div class="bfill" style="width:'+Math.round(b.cpu/b.t_total*100)+'%;background:var(--am)"></div></div>'
+  +'<span class="bv" style="color:var(--txt3)">'+b.cpu+' <span class="bv-unit">ms</span></span></div>'
+  +'<div class="brow"><span class="bl" style="color:var(--txt3)">inter_size</span>'
+  +'<div class="btrack"><div class="bfill" style="width:30%;background:var(--am);opacity:.5"></div></div>'
+  +'<span class="bv" style="color:var(--txt3)">'+b.inter_size.toLocaleString()+' <span class="bv-unit">rows</span></span></div>';
+  var ins=document.getElementById('strat-insight');
+  ins.style.display='block';
+  ins.style.borderLeftColor=t==='gf'?'var(--gf)':'var(--sf)';
+  // ins.textContent=INSIGHTS[t];
+}
+
+// ─────────────────────────────────────────────────────────
+//  INTERMEDIATE SET
+// ─────────────────────────────────────────────────────────
+function updateInterSet(bm){
+  var gf=bm.gf.inter_size,sf=bm.sf.inter_size;
+  var maxV=Math.max(gf,sf);
+  ih('inter-gf',gf.toLocaleString());
+  ih('inter-sf',sf.toLocaleString());
+  document.getElementById('inter-gf-bar').style.width=Math.round(gf/maxV*100)+'%';
+  document.getElementById('inter-sf-bar').style.width=Math.round(sf/maxV*100)+'%';
+  var ratio=(sf/gf).toFixed(1);
+  var analysis;
+  if(sf>gf){
+    analysis='SQL-first tạo intermediate set lớn hơn '+ratio+'× so với Graph-first. '
+      +'Communication cost (O&V) cao hơn → bước JOIN/transfer tốn kém hơn. '
+      +'Khuyến nghị: dùng Graph-first cho dataset này.';
+  }else{
+    analysis='Graph-first tạo intermediate set lớn hơn '+(gf/sf).toFixed(1)+'× so với SQL-first. '
+      +'SQL filter selectivity cao → communication cost thấp hơn. '
+      +'Khuyến nghị: dùng SQL-first hoặc tăng depth BFS.';
+  }
+  document.getElementById('inter-analysis').textContent=analysis;
+}
+
+// ─────────────────────────────────────────────────────────
+//  RESULT TABLE
+// ─────────────────────────────────────────────────────────
+var AVC=[['rgba(129,140,248,.15)','#818cf8'],['rgba(251,113,133,.12)','#fb7185'],
+         ['rgba(52,211,153,.1)','#34d399'],['rgba(251,191,36,.1)','#fbbf24'],
+         ['rgba(34,211,238,.1)','#22d3ee'],['rgba(244,114,182,.1)','#f472b6']];
+function renderTable(rows){
+  var tb=document.getElementById('rtbody');
+  var ct=document.getElementById('rows-tag');
+  if(!rows||!rows.length){
+    tb.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-txt">no results</div></div></td></tr>';
+    ct.textContent='0 rows';return;
+  }
+  ct.textContent=rows.length+' rows';
+  tb.innerHTML=rows.map(function(r,i){
+    var ac=AVC[i%AVC.length];
+    // Backend trả actor_name, title, revenue, bacon_number
+    var name=r.actor_name||r.name||'—';
+    var ini=name.split(' ').slice(0,2).map(function(w){return w[0]||'?';}).join('');
+    var rev=r.revenue||0;
+    var rs=rev>=1e9?'$'+(rev/1e9).toFixed(2)+'B':'$'+Math.round(rev/1e6)+'M';
+    var bn=r.bacon_number||r.bacon||'?';
+    var bc=bn<=1?'chip-gf':bn<=2?'chip-cy':'chip-am';
+    return'<tr>'
+      +'<td><div class="avc"><div class="av" style="background:'+ac[0]+';color:'+ac[1]+'">'+ini+'</div>'+name+'</div></td>'
+      +'<td>'+(r.title||r.movie||'—')+'</td>'
+      +'<td class="money">'+rs+'</td>'
+      +'<td style="text-align:center"><span class="chip '+bc+'" style="font-size:9.5px">'+bn+'</span></td>'
+      +'<td style="text-align:center;font-family:var(--mono);font-size:10.5px;color:var(--txt3)">'+(r.year||'—')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────
+//  BENCHMARK
+// ─────────────────────────────────────────────────────────
+
+
+async function runBenchmark(){
+  var btn=document.getElementById('bench-btn');
+  var prog=document.getElementById('prog-bar');
+  var fill=document.getElementById('prog-fill');
+
+  var n=parseInt(document.getElementById('b-runs').value);
+  var size=document.getElementById('b-size').value;
+  var depth=document.getElementById('b-depth').value;
+  var actor = document.getElementById('c-actor').value.trim() || 'Kevin Bacon';
+  var minRev = (parseInt(document.getElementById('c-rev').value) || 100) * 1e6;
+  btn.disabled=true;btn.classList.add('busy');btn.textContent='Running…';
+
+  prog.style.display='block';fill.style.width='10%';
+  var loadingInterval = setInterval(() => {
+      let currentWidth = parseInt(fill.style.width);
+      if (currentWidth < 90) fill.style.width = (currentWidth + 5) + '%';
+  }, 1000);
+
+
+  try {
+    // Gọi API thật xuống FastAPI Backend
+    var url = S.apiBase + '/benchmark/bacon?' + new URLSearchParams({
+        actor: actor,
+        depth: depth,
+        min_revenue: minRev,
+        runs: n
+    });
+
+    // Cài đặt timeout lớn (ví dụ 5 phút = 300,000ms) vì benchmark chạy nhiều vòng sẽ lâu
+    var r = await fetch(url, { signal: AbortSignal.timeout(300000) });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+
+    var data = await r.json();
+    var runs = data.runs; // Lấy mảng kết quả từ API
+
+    fill.style.width = '100%';
+    S.benchRuns = runs;
+    
+    // Đưa dữ liệu thật vào các hàm vẽ UI
+    renderBenchmarkResults(runs, size, depth, n);
+    toast('Benchmark thành công — ' + n + ' runs');
+
+  } catch (err) {
+    console.error(err);
+    toast('Lỗi API Benchmark: ' + err.message);
+    fill.style.background = 'var(--rd)';
+  } finally {
+    clearInterval(loadingInterval);
+    btn.disabled = false;
+    btn.classList.remove('busy');
+    btn.textContent = '◎ Run Benchmark';
+    
+    // Reset thanh tiến trình sau 1.5s
+    setTimeout(() => { 
+        prog.style.display = 'none'; 
+        fill.style.background = 'var(--am)'; 
+    }, 1500);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  BENCHMARK — gọi API thật /benchmark/bacon
+// ─────────────────────────────────────────────────────────
+async function runBenchmark(){
+  var btn=document.getElementById('bench-btn');
+  var prog=document.getElementById('prog-bar');
+  var fill=document.getElementById('prog-fill');
+  var actor  = document.getElementById('b-actor').value.trim()||'Kevin Bacon';
+  var depth  = document.getElementById('b-depth').value;
+  var rev    = (parseInt(document.getElementById('b-rev').value)||100)*1e6;
+  var n      = parseInt(document.getElementById('b-runs').value);
+  var apiBase= document.getElementById('c-api').value.trim()||S.apiBase;
+  document.getElementById('bench-api-url').textContent=apiBase;
+
+  btn.disabled=true;btn.classList.add('busy');btn.textContent='Calling API…';
+  prog.style.display='block';fill.style.width='10%';
+
+  // Progress animation trong khi chờ API
+  var loadInterval=setInterval(function(){
+    var w=parseInt(fill.style.width);
+    if(w<88) fill.style.width=(w+4)+'%';
+  },800);
+
+  try{
+    var url=apiBase+'/benchmark/bacon?'+new URLSearchParams({
+      actor:actor, depth:depth, min_revenue:rev, runs:n
+    });
+    var resp=await fetch(url,{signal:AbortSignal.timeout(300000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    var json=await resp.json();
+    // Backend trả: {runs:[{run_id, gf:{t1,t2,t3,t_total,cpu,inter_size,mem_mb,result_count}, sf:{...}}]}
+    var runs_data=json.runs||[];
+    fill.style.width='100%';
+    S.benchRuns=runs_data;
+    renderBenchmarkResults(runs_data,depth,n);
+    toast('Benchmark done — '+runs_data.length+' runs từ API');
+  }catch(err){
+    toast('API offline — hiển thị mock data');
+    var mock=generateMockRuns(n);
+    S.benchRuns=mock;
+    renderBenchmarkResults(mock,depth,n);
+  }finally{
+    clearInterval(loadInterval);
+    btn.disabled=false;btn.classList.remove('busy');btn.textContent='◎ Run Benchmark';
+    setTimeout(function(){prog.style.display='none';fill.style.width='0%';},800);
+  }
+}
+
+// Mock fallback khi API offline
+function generateMockRuns(n){
+  var rows=[];
+  for(var i=0;i<n;i++){
+    var gfT=110+Math.random()*60;
+    var sfT=gfT*(3.5+Math.random()*4);
+    rows.push({run_id:i+1,
+      gf:{t1:+(gfT*.52).toFixed(2),t2:+(gfT*.35).toFixed(2),t3:+(gfT*.13).toFixed(2),
+          t_total:+gfT.toFixed(2),cpu:+(gfT*.68).toFixed(2),
+          inter_size:Math.floor(150+Math.random()*350),
+          mem_mb:+(0.8+Math.random()*.8).toFixed(2),result_count:Math.floor(8+Math.random()*12)},
+      sf:{t1:+(sfT*.18).toFixed(2),t2:+(sfT*.72).toFixed(2),t3:+(sfT*.10).toFixed(2),
+          t_total:+sfT.toFixed(2),cpu:+(sfT*.55).toFixed(2),
+          inter_size:Math.floor(4000+Math.random()*8000),
+          mem_mb:+(3+Math.random()*3).toFixed(2),result_count:Math.floor(8+Math.random()*12)}
+    });
+  }
+  return rows;
+}
+
+function stats(arr){
+  var n=arr.length;
+  if(!n)return{mean:0,std:0,p95:0,min:0,max:0};
+  var mean=arr.reduce(function(a,b){return a+b;},0)/n;
+  var std=Math.sqrt(arr.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/n);
+  var sorted=arr.slice().sort(function(a,b){return a-b;});
+  return{mean:+mean.toFixed(2),std:+std.toFixed(2),p95:+sorted[Math.floor(n*.95)].toFixed(2),min:+sorted[0].toFixed(2),max:+sorted[n-1].toFixed(2)};
+}
+
+function renderBenchmarkResults(runs,depth,n){
+  var gfSt  =stats(runs.map(function(r){return r.gf.t_total;}));
+  var sfSt  =stats(runs.map(function(r){return r.sf.t_total;}));
+  var gfCpu =stats(runs.map(function(r){return r.gf.cpu||0;}));
+  var sfCpu =stats(runs.map(function(r){return r.sf.cpu||0;}));
+  var gfInter=stats(runs.map(function(r){return r.gf.inter_size||0;}));
+  var sfInter=stats(runs.map(function(r){return r.sf.inter_size||0;}));
+  var gfMem =stats(runs.map(function(r){return parseFloat(r.gf.mem_mb)||0;}));
+  var sfMem =stats(runs.map(function(r){return parseFloat(r.sf.mem_mb)||0;}));
+
+  // Stat cards
+  ih('bs-gf-mean',gfSt.mean+'<sub> ms</sub>');
+  ih('bs-gf-std','std: ±'+gfSt.std+' ms');
+  ih('bs-sf-mean',sfSt.mean+'<sub> ms</sub>');
+  ih('bs-sf-std','std: ±'+sfSt.std+' ms');
+  ih('bs-p95',gfSt.p95+' / '+sfSt.p95+' ms');
+  var gfWins=gfSt.mean<sfSt.mean;
+  ih('bs-winner',gfWins?'⬡ GF':'⊠ SF');
+  document.getElementById('bs-winner').style.color=gfWins?'var(--gf)':'var(--sf)';
+  ih('bs-winner-s',gfWins
+    ?'GF nhanh hơn '+(sfSt.mean/gfSt.mean).toFixed(1)+'×'
+    :'SF nhanh hơn '+(gfSt.mean/sfSt.mean).toFixed(1)+'×');
+  ih('bench-scenario-chip','depth='+depth+' · n='+n+' runs');
+
+  // Full comparison table — chỉ metric có ý nghĩa, bỏ I/O + comm_bytes
+  var rows=[
+    {metric:'Response Time — mean',  gfV:gfSt.mean+' ms',   sfV:sfSt.mean+' ms',   w:gfSt.mean<sfSt.mean?'gf':'sf',  note:'wall-clock t_total — primary metric (O&V Response Time)'},
+    {metric:'Response Time — p95',   gfV:gfSt.p95+' ms',    sfV:sfSt.p95+' ms',    w:gfSt.p95<sfSt.p95?'gf':'sf',    note:'95th percentile — chỉ số ổn định hơn max'},
+    {metric:'Response Time — std',   gfV:'±'+gfSt.std+' ms',sfV:'±'+sfSt.std+' ms',w:gfSt.std<sfSt.std?'gf':'sf',    note:'độ lệch chuẩn — thấp hơn = ổn định hơn'},
+    {metric:'CPU cost — mean',       gfV:gfCpu.mean+' ms',  sfV:sfCpu.mean+' ms',  w:gfCpu.mean<sfCpu.mean?'gf':'sf', note:'process_time() — O&V CPU cost, loại I/O wait'},
+    {metric:'Intermediate set size', gfV:gfInter.mean.toLocaleString(),sfV:sfInter.mean.toLocaleString(),w:gfInter.mean<sfInter.mean?'gf':'sf',note:'proxy cho O&V Communication cost — yếu tố quyết định'},
+    {metric:'Memory peak — mean',    gfV:gfMem.mean+' MB',  sfV:sfMem.mean+' MB',  w:gfMem.mean<sfMem.mean?'gf':'sf', note:'tracemalloc — inter_size lớn → RAM cao hơn'}
+  ];
+  document.getElementById('cmp-tbody').innerHTML=rows.map(function(r){
+    var gfW=r.w==='gf';
+    var wc=gfW?'<span class="chip chip-gf" style="font-size:9px">⬡ GF</span>'
+              :'<span class="chip chip-sf" style="font-size:9px">⊠ SF</span>';
+    return'<tr>'
+      +'<td style="font-family:var(--mono);font-size:10.5px;color:var(--txt2)">'+r.metric+'</td>'
+      +'<td class="num-cell" style="color:'+(gfW?'var(--gr)':'var(--txt2)')+'">'+r.gfV+'</td>'
+      +'<td class="num-cell" style="color:'+(!gfW?'var(--gr)':'var(--txt2)')+'">'+r.sfV+'</td>'
+      +'<td class="winner-cell">'+wc+'</td>'
+      +'<td style="font-size:10px;color:var(--txt3);font-family:var(--mono)">'+r.note+'</td>'
+      +'</tr>';
+  }).join('');
+
+  // Charts + inter set
+  renderMultiChart(runs);
+  ih('bi-gf',gfInter.mean.toLocaleString());
+  ih('bi-sf',sfInter.mean.toLocaleString());
+  var maxI=Math.max(gfInter.mean,sfInter.mean)||1;
+  document.getElementById('bi-gf-bar').style.width=Math.round(gfInter.mean/maxI*100)+'%';
+  document.getElementById('bi-sf-bar').style.width=Math.round(sfInter.mean/maxI*100)+'%';
+  var histVals=runs.slice(-8).map(function(r){return r.gf.t_total;});
+  renderHist(histVals);
+  ih('run-count-lbl',n+' runs');
+  renderRunLog(runs);
+  renderCostAnalysis(gfSt,sfSt,gfCpu,sfCpu,gfInter,sfInter,gfMem,sfMem);
+}
+
+function renderMultiChart(runs){
+  var area=document.getElementById('multi-chart');
+  document.getElementById('multi-empty').style.display='none';
+  area.querySelectorAll('.bar-col').forEach(function(e){e.remove();});
+  var allVals=runs.map(function(r){return Math.max(r.gf.t_total,r.sf.t_total);});
+  var maxV=Math.max.apply(null,allVals)||1;
+  var maxH=130;
+  runs.forEach(function(r){
+    var col=document.createElement('div');
+    col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;min-width:0';
+    var hGF=Math.max(r.gf.t_total/maxV*maxH,2);
+    var hSF=Math.max(r.sf.t_total/maxV*maxH,2);
+    col.innerHTML='<div style="display:flex;gap:1px;align-items:flex-end;width:100%;justify-content:center">'
+      +'<div style="flex:1;height:'+hGF+'px;background:var(--gf);opacity:.75;border-radius:2px 2px 0 0"></div>'
+      +'<div style="flex:1;height:'+hSF+'px;background:var(--sf);opacity:.75;border-radius:2px 2px 0 0"></div>'
+      +'</div>';
+    area.appendChild(col);
+  });
+}
+
+function renderHist(vals){
+  var grid=document.getElementById('hist-grid');
+  var lbls=document.getElementById('hist-lbls');
+  var maxV=Math.max.apply(null,vals)||1;
+  grid.innerHTML=vals.map(function(v,i){
+    var pct=Math.max(v/maxV*100,5);
+    var isL=i===vals.length-1;
+    return'<div class="hbar" style="background:'+(isL?'var(--gf)':'rgba(129,140,248,.25)')+';height:'+pct+'%"></div>';
+  }).join('');
+  lbls.innerHTML=vals.map(function(v){return'<span>'+Math.round(v)+'</span>';}).join('');
+}
+
+function renderRunLog(runs){
+  var body=document.getElementById('run-log-body');
+  var gfTotals=runs.map(function(r){return r.gf.t_total;});
+  var minGF=Math.min.apply(null,gfTotals),maxGF=Math.max.apply(null,gfTotals);
+  body.innerHTML=runs.map(function(r,i){
+    var g=r.gf,s=r.sf;
+    var isBest=g.t_total===minGF,isWorst=g.t_total===maxGF;
+    var cls=isBest?'best-row':isWorst?'worst-row':'';
+    var marker=isBest?' ★':isWorst?' ▼':'';
+    return'<tr class="'+cls+'">'
+      +'<td>#'+(r.run_id||i+1)+marker+'</td>'
+      +'<td>'+g.t1+' / <span style="color:var(--sf)">'+s.t1+'</span></td>'
+      +'<td>'+g.t2+' / <span style="color:var(--sf)">'+s.t2+'</span></td>'
+      +'<td>'+g.t3+' / <span style="color:var(--sf)">'+s.t3+'</span></td>'
+      +'<td style="font-weight:600;color:var(--gf)">'+g.t_total+' / <span style="color:var(--sf)">'+s.t_total+'</span></td>'
+      +'<td>'+g.cpu+' / <span style="color:var(--sf)">'+s.cpu+'</span></td>'
+      +'<td style="color:var(--am)">'+g.inter_size.toLocaleString()+' / <span style="color:var(--sf)">'+s.inter_size.toLocaleString()+'</span></td>'
+      +'<td>'+g.mem_mb+' / <span style="color:var(--sf)">'+s.mem_mb+'</span></td>'
+      +'<td>'+g.result_count+' / <span style="color:var(--sf)">'+s.result_count+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderCostAnalysis(gfSt,sfSt,gfCpu,sfCpu,gfInter,sfInter,gfMem,sfMem){
+  ih('ca-gf',
+    'Response Time (mean): '+gfSt.mean+' ms  |  p95: '+gfSt.p95+' ms\n'
+   +'CPU cost:             '+gfCpu.mean+' ms  (process_time)\n'
+   +'I/O cost:             ≈ 0 ms  (SQLite RAM cache — single-node)\n'
+   +'Comm. cost:           ≈ 0 ms  (same process — single-node)\n'
+   +'Intermediate set:     '+gfInter.mean.toLocaleString()+' IDs  ← nhỏ → SQL WHERE IN rẻ\n'
+   +'Memory peak:          '+gfMem.mean+' MB\n'
+   +'─────────────────────────────────────────\n'
+   +'Kết luận: t_total ≈ CPU cost. Performance\n'
+   +'gap giải thích bởi inter_size nhỏ hơn SF.'
+  );
+  ih('ca-sf',
+    'Response Time (mean): '+sfSt.mean+' ms  |  p95: '+sfSt.p95+' ms\n'
+   +'CPU cost:             '+sfCpu.mean+' ms  (process_time)\n'
+   +'I/O cost:             ≈ 0 ms  (SQLite RAM cache — single-node)\n'
+   +'Comm. cost:           ≈ 0 ms  (same process — single-node)\n'
+   +'Intermediate set:     '+sfInter.mean.toLocaleString()+' IDs  ← lớn → N×BFS lookup\n'
+   +'Memory peak:          '+sfMem.mean+' MB\n'
+   +'─────────────────────────────────────────\n'
+   +'Kết luận: bottleneck ở t2 (N×graph lookup)\n'
+   +'do inter_size lớn hơn GF ~'+(sfInter.mean/Math.max(gfInter.mean,1)).toFixed(0)+'×.'
+  );
+  var gfFaster=gfSt.mean<sfSt.mean;
+  var ratio=gfFaster?(sfSt.mean/gfSt.mean).toFixed(1):(gfSt.mean/sfSt.mean).toFixed(1);
+  var conclusion=gfFaster
+    ?'Graph-first nhanh hơn '+ratio+'×. Intermediate set GF ('+gfInter.mean.toLocaleString()+')'
+     +' nhỏ hơn SF ('+sfInter.mean.toLocaleString()+') → CPU cost thấp hơn.'
+     +' Theo O&V: khi SQL selectivity thấp, Graph-first là chiến lược tối ưu.'
+    :'SQL-first nhanh hơn '+ratio+'×. SQL filter loại được nhiều phim → intermediate set SF'
+     +' ('+sfInter.mean.toLocaleString()+') nhỏ hơn GF ('+gfInter.mean.toLocaleString()+').'
+     +' Theo O&V: khi SQL selectivity cao, SQL-first tối ưu hơn.';
+  ih('ca-conclusion',conclusion);
+}
+
+// ─────────────────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────────────────
+function ih(id,h){var e=document.getElementById(id);if(e)e.innerHTML=h;}
+function copyQ(){navigator.clipboard.writeText(document.getElementById('qcode').textContent).then(function(){toast('Query copied!');});}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
+
+// ─────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────
+window.addEventListener('load',function(){
+  updateQCode();
+  checkHealth();
+  document.getElementById('c-depth').addEventListener('change',updateQCode);
+  document.getElementById('c-actor').addEventListener('input',updateQCode);
+  document.getElementById('c-rev').addEventListener('input',updateQCode);
+  document.getElementById('c-api').addEventListener('change',checkHealth);
+  setInterval(checkHealth,30000);
+});
+</script>
+</body>
+</html>

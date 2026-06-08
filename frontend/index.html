@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiModel Join Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+    <nav class="sidebar">
+        <div class="sb-logo">
+            <div class="sb-logo-mark">&#x2B21;</div>
+            <div>
+                <div class="sb-logo-text">MultiModel</div>
+                <div class="sb-logo-sub">Join v1.0</div>
+            </div>
+        </div>
+        <div class="sb-nav">
+            <a class="ni act" id="nav-dash" onclick="navTo(event,'dash')" href="#"><span class="ni-dot"></span>Dashboard</a>
+            <a class="ni" id="nav-bench" onclick="navTo(event,'bench')" href="#"><span class="ni-dot"></span>Benchmark</a>
+            <a class="ni" id="nav-qexplorer" onclick="navTo(event,'qexplorer')" href="#"><span class="ni-dot"></span>Query Explorer</a>
+            <a class="ni" id="nav-schema" onclick="navTo(event,'schema')" href="#"><span class="ni-dot"></span>Schema View</a>
+            <div class="sb-sec">System</div>
+            <a class="ni" id="nav-monitor" onclick="navTo(event,'monitor')" href="#"><span class="ni-dot"></span>Node Monitor</a>
+        </div>
+        <div class="sb-foot">
+            <div class="ldot" id="sys-dot"></div>
+            <span id="sys-status">Demo mode</span>
+        </div>
+    </nav>
+
+    <div class="main-area">
+        <div class="topbar">
+            <div class="tbtitle">Kevin Bacon <span>&#8212; cross-model join benchmark</span></div>
+            <div class="api-status"><div class="api-dot" id="api-dot"></div><span id="api-lbl">checking API&#8230;</span></div>
+            <span class="tag tag-pu" id="strat-tag">Graph-first</span>
+            <span class="tag tag-gr" id="time-tag">&#8212;</span>
+        </div>
+
+        <div class="content">
+            <div class="stabs">
+                <div class="stab s-gf" id="tab-gf" onclick="setTab(event,'gf')">&#x2B21;&nbsp;Graph-first</div>
+                <div class="stab" id="tab-sf" onclick="setTab(event,'sf')">&#x22A0;&nbsp;SQL-first</div>
+                <div class="stab" id="tab-pg" onclick="setTab(event,'pg')">&#x25CE;&nbsp;Pure Graph</div>
+                <div class="stab" id="tab-ps" onclick="setTab(event,'ps')">&#x22A1;&nbsp;Pure SQL</div>
+            </div>
+
+            <div class="controls">
+                <div class="cg"><label class="cl">Actor Name</label>
+                    <input type="text" id="c-actor" class="ci" value="Kevin Bacon" placeholder="e.g. Tom Hanks">
+                </div>
+                <div class="cg"><label class="cl">BFS Depth</label>
+                    <select id="c-depth" class="cs">
+                        <option value="1">1 hop</option>
+                        <option value="2" selected>2 hops</option>
+                        <option value="3">3 hops</option>
+                        <option value="4">4 hops</option>
+                    </select>
+                </div>
+                <div class="cg"><label class="cl">Min Revenue ($M)</label>
+                    <input type="number" id="c-rev" class="ci sm" value="100" min="0" max="5000" step="10">
+                </div>
+                <div class="cg"><label class="cl">Limit</label>
+                    <select id="c-limit" class="cs">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="cg"><label class="cl">FastAPI Base URL</label>
+                    <input type="text" id="c-api" class="ci" value="http://localhost:8000">
+                </div>
+                <button class="runbtn" id="run-btn" onclick="runQuery()">&#x25B6; Run Query</button>
+            </div>
+
+            <div class="metrics">
+                <div class="mc"><div class="mc-l">actors found</div><div class="mc-v" id="m-actors">&#8212;</div><div class="mc-s" id="m-actors-s">depth &#8212; hops</div></div>
+                <div class="mc"><div class="mc-l">movies matched</div><div class="mc-v" id="m-movies">&#8212;</div><div class="mc-s">revenue filter applied</div></div>
+                <div class="mc"><div class="mc-l">exec time</div><div class="mc-v" id="m-time">&#8212;<sub> ms</sub></div><div class="mc-s" id="m-strat">waiting&#8230;</div></div>
+                <div class="mc"><div class="mc-l">speed vs pure sql</div><div class="mc-v" id="m-speed">&#8212;<sub>&#215;</sub></div><div class="mc-s">relative gain</div></div>
+                <div class="mc"><div class="mc-l">intermediate set</div><div class="mc-v" id="m-inter">&#8212;</div><div class="mc-s">rows before join</div></div>
+            </div>
+
+            <div class="fullpanel">
+                <div class="ph">
+                    <span class="ptitle">Execution time comparison &#8212; 4 strategies</span>
+                    <span id="chart-sub" style="font-size:10.5px;font-family:var(--mono);color:var(--txt3)">run a query to populate</span>
+                    <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+                        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--pu);display:inline-block"></span>Graph-first</span>
+                        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--rd);display:inline-block"></span>SQL-first</span>
+                        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>Pure Graph</span>
+                        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--cy);display:inline-block"></span>Pure SQL</span>
+                    </div>
+                </div>
+                <div id="chart-area" class="chart-area">
+                    <div class="chart-grid" id="chart-grid"></div>
+                    <div class="empty-state" id="chart-empty" style="position:absolute;inset:0;width:100%">
+                        <div class="empty-icon">&#x25A0;</div>
+                        <div class="empty-text">run a query to see comparison chart</div>
+                    </div>
+                </div>
+                <div id="chart-xlabels" style="display:none;justify-content:space-around;padding:6px 8px 0;font-size:10px;font-family:var(--mono);color:var(--txt3)">
+                    <span>Graph-first</span><span>SQL-first</span><span>Pure Graph</span><span>Pure SQL</span>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="panel">
+                    <div class="ph">
+                        <span class="ptitle">Execution breakdown</span>
+                        <span class="tag tag-pu" id="bd-tag">Graph-first</span>
+                    </div>
+                    <div class="tbar" id="tbar"><div class="tseg" style="width:100%;background:var(--bg3);color:var(--txt3)">run query first</div></div>
+                    <div id="bd-rows"><div class="empty-state" style="padding:20px"><div class="empty-text">no data yet</div></div></div>
+                    <div class="strat-note" id="strat-note"></div>
+                </div>
+
+                <div class="panel">
+                    <div class="ph">
+                        <span class="ptitle">Node monitor</span>
+                        <button class="kbtn" id="kill-btn" onclick="killNeo4j()">Stop neo4j</button>
+                    </div>
+                    <div class="nr"><div class="dot dot-g" id="dot-neo4j"></div><span class="nn">neo4j:5</span><span class="ni2" id="inf-neo4j">7687 &#183; awaiting&#8230;</span><button class="kbtn" onclick="killNeo4j()">Stop</button></div>
+                    <div class="nr"><div class="dot dot-g" id="dot-pg"></div><span class="nn">postgres:16</span><span class="ni2" id="inf-pg">5432 &#183; awaiting&#8230;</span><button class="kbtn" onclick="alert('Postgres stop: SQL filter fails \u2192 HTTP 206 partial result.')">Stop</button></div>
+                    <div class="nr"><div class="dot dot-g" id="dot-api2"></div><span class="nn">fastapi:8000</span><span class="ni2" id="inf-api">awaiting&#8230;</span><button class="kbtn" onclick="alert('FastAPI down \u2192 502 Bad Gateway on all endpoints.')">Stop</button></div>
+                    
+                    <div class="fbanner" id="fbanner">
+                        <div class="fb-title">&#x26A0; Neo4j unreachable</div>
+                        <div class="fb-msg">Connection refused port 7687<br>Fallback mode: Pure SQL CTE<br>Perf impact: &#x21D2; ~13&#xD7; slowdown</div>
+                        <button class="rbtn" onclick="restoreNeo4j()">&#x25B6; Restart neo4j</button>
+                    </div>
+
+                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+                        <div style="font-size:10px;font-family:var(--mono);color:var(--txt3);margin-bottom:6px">Last 4 runs (ms)</div>
+                        <div style="display:flex;gap:4px;align-items:flex-end;height:30px" id="hist-bars">
+                            <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:40%"></div>
+                            <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:60%"></div>
+                            <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:35%"></div>
+                            <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:50%"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:3px" id="hist-lbls">
+                            <span>&#8212;</span><span>&#8212;</span><span>&#8212;</span><span>&#8212;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-wrap">
+                <div class="ph">
+                    <span class="ptitle">Query results</span>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <span class="tag tag-am" id="rows-tag">0 rows</span>
+                        <span id="spin" style="display:none"><span class="spinner"></span></span>
+                    </div>
+                </div>
+                <table class="rtbl">
+                    <thead>
+                        <tr>
+                            <th style="width:28%">Actor</th>
+                            <th style="width:28%">Movie</th>
+                            <th style="width:16%;text-align:right">Revenue</th>
+                            <th style="width:14%;text-align:center">Bacon #</th>
+                            <th style="width:14%;text-align:center">Year</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rtbody">
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <div class="empty-icon">&#x25A1;</div>
+                                    <div class="empty-text">configure controls and click Run Query</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="qpanel">
+                <div class="ph">
+                    <span class="ptitle">Generated query &#8212; <span id="qlang" style="color:var(--pu)">Cypher + SQL</span></span>
+                    <button class="kbtn" onclick="copyQ()">Copy</button>
+                </div>
+                <pre class="qcode" id="qcode">-- Select a strategy tab and run a query</pre>
+            </div>
+
+            <div class="fullpanel">
+                <div class="ph"><span class="ptitle">Benchmark statistics &#8212; estimated 10-run averages</span><span class="tag tag-am">depth=2 &#183; 1M nodes &#183; 10M edges</span></div>
+                <table class="bench-tbl">
+                    <thead>
+                        <tr>
+                            <th>Strategy</th>
+                            <th style="text-align:right">Min</th>
+                            <th style="text-align:right">Avg</th>
+                            <th style="text-align:right">Max</th>
+                            <th style="text-align:right">P95</th>
+                            <th style="text-align:center">vs Pure SQL</th>
+                            <th>Intermediate set</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span style="font-weight:600;color:var(--pu)">&#x2B21; Graph-first</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">BFS &#x2192; SQL WHERE IN</span></td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--gr)">118ms</td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--gr);font-weight:600">142ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">198ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">185ms</td>
+                            <td style="text-align:center"><span class="tag tag-gr">12.9&#xD7; faster</span></td>
+                            <td style="font-family:var(--mono);font-size:11px;color:var(--cy)">~284 IDs</td>
+                        </tr>
+                        <tr>
+                            <td><span style="font-weight:600;color:var(--am)">&#x25CE; Pure Graph</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">Cypher only in Neo4j</span></td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--gr)">160ms</td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--am);font-weight:600">190ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">230ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">220ms</td>
+                            <td style="text-align:center"><span class="tag tag-am">9.7&#xD7; faster</span></td>
+                            <td style="font-family:var(--mono);font-size:11px;color:var(--cy)">~284 nodes</td>
+                        </tr>
+                        <tr>
+                            <td><span style="font-weight:600;color:var(--rd)">&#x22A0; SQL-first</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">SQL scan &#x2192; N&#xD7; graph lookup</span></td>
+                            <td style="text-align:right;font-family:var(--mono)">720ms</td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--rd);font-weight:600">820ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">1,100ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">1,050ms</td>
+                            <td style="text-align:center"><span class="tag tag-rd">2.2&#xD7; faster</span></td>
+                            <td style="font-family:var(--mono);font-size:11px;color:var(--rd)">~12,000 rows</td>
+                        </tr>
+                        <tr>
+                            <td><span style="font-weight:600;color:var(--cy)">&#x22A1; Pure SQL</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">Recursive CTE, no graph engine</span></td>
+                            <td style="text-align:right;font-family:var(--mono)">1,520ms</td>
+                            <td style="text-align:right;font-family:var(--mono);color:var(--am);font-weight:600">1,840ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">2,400ms</td>
+                            <td style="text-align:right;font-family:var(--mono)">2,200ms</td>
+                            <td style="text-align:center"><span class="tag tag-rd">baseline</span></td>
+                            <td style="font-family:var(--mono);font-size:11px;color:var(--rd)">full self-joins</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

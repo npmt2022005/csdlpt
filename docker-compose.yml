@@ -1,0 +1,59 @@
+services:
+
+  postgres:  # container 1 
+    image: postgres:16-alpine
+    container_name: movie_postgres_container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Thuc2022005@
+      POSTGRES_DB: movie_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - movie_network
+
+
+  neo4j:  # Container 2
+    image: neo4j:5-community
+    container_name: movie_neo4j_container
+    ports:
+      - "7474:7474" # Cổng vào giao diện Web UI quản lý đồ thị
+      - "7687:7687" # Cổng Bolt dùng cho driver Python kết nối
+    environment:
+      - NEO4J_AUTH=neo4j/Thuc2022005
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - movie_network
+
+
+  backend:  #COntainer 3
+    build: ./backend
+    container_name: movie_fastapi_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Thuc2022005@
+      - POSTGRES_DB=movie_data
+      - NEO4J_HOST=neo4j
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=Thuc2022005
+    volumes:
+      - ./backend:/backend 
+    networks:
+      - movie_network
+    depends_on:
+      - postgres
+      - neo4j
+
+networks:
+  movie_network:  
+    driver: bridge
+
+volumes:
+  postgres_data: 
+  neo4j_data: 

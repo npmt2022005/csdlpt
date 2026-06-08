@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MultiModel Join Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+:root{
+  --bg:#080b10;--bg2:#0f1319;--bg3:#161c26;--bg4:#1d2438;
+  --line:rgba(255,255,255,.065);--line2:rgba(255,255,255,.12);--line3:rgba(255,255,255,.2);
+  --txt:#dde3ee;--txt2:#7a8499;--txt3:#3d4659;
+  --pu:#a78bfa;--pu2:#7c3aed;--pu-d:rgba(167,139,250,.1);--pu-m:rgba(167,139,250,.28);
+  --cy:#22d3ee;--cy-d:rgba(34,211,238,.1);--cy-m:rgba(34,211,238,.28);
+  --gr:#4ade80;--gr-d:rgba(74,222,128,.1);--gr-m:rgba(74,222,128,.25);
+  --rd:#f87171;--rd-d:rgba(248,113,113,.1);--rd-m:rgba(248,113,113,.25);
+  --am:#fbbf24;--am-d:rgba(251,191,36,.1);--am-m:rgba(251,191,36,.25);
+  --pk:#f472b6;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --r:8px;--r2:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+.shell{display:grid;grid-template-columns:200px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-logo{padding:18px 16px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.sb-logo-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--pu2),var(--cy));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-logo-text{font-size:13px;font-weight:600;color:var(--txt);line-height:1.3}
+.sb-logo-sub{font-size:10px;color:var(--txt3);font-family:var(--mono)}
+.sb-nav{padding:8px 0;flex:1}
+.sb-sec{font-size:9.5px;color:var(--txt3);padding:12px 16px 4px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono)}
+.ni{display:flex;align-items:center;gap:9px;padding:7px 16px;font-size:12.5px;color:var(--txt2);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .15s}
+.ni:hover{background:rgba(255,255,255,.025);color:var(--txt)}
+.ni.act{color:var(--pu);background:var(--pu-d);border-left-color:var(--pu)}
+.ni-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.6}
+.sb-foot{padding:12px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--txt3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.ldot{width:6px;height:6px;border-radius:50%;background:var(--gr)}
+.ldot.dead{background:var(--rd);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* MAIN */
+.main-area{display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--bg2);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.tbtitle{font-size:13.5px;font-weight:600;color:var(--txt);flex:1}
+.tbtitle span{color:var(--txt2);font-weight:400;margin-left:5px;font-size:12px}
+.tag{font-size:10.5px;font-family:var(--mono);padding:2px 9px;border-radius:20px;white-space:nowrap;font-weight:500}
+.tag-pu{background:var(--pu-d);color:var(--pu);border:1px solid var(--pu-m)}
+.tag-gr{background:var(--gr-d);color:var(--gr);border:1px solid var(--gr-m)}
+.tag-rd{background:var(--rd-d);color:var(--rd);border:1px solid var(--rd-m)}
+.tag-am{background:var(--am-d);color:var(--am);border:1px solid var(--am-m)}
+.tag-cy{background:var(--cy-d);color:var(--cy);border:1px solid var(--cy-m)}
+.api-status{display:flex;align-items:center;gap:5px;font-size:10.5px;font-family:var(--mono);color:var(--txt3)}
+.api-dot{width:5px;height:5px;border-radius:50%;background:var(--txt3)}
+.api-dot.ok{background:var(--gr)}.api-dot.err{background:var(--rd)}
+
+/* CONTENT */
+.content{padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1}
+
+/* STRATEGY TABS */
+.stabs{display:flex;border-bottom:1px solid var(--line)}
+.stab{font-size:12px;font-weight:500;padding:8px 16px;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.stab:hover{color:var(--txt)}
+.stab.s-gf{color:var(--pu);border-bottom-color:var(--pu)}
+.stab.s-sf{color:var(--rd);border-bottom-color:var(--rd)}
+.stab.s-pg{color:var(--am);border-bottom-color:var(--am)}
+.stab.s-ps{color:var(--cy);border-bottom-color:var(--cy)}
+
+/* CONTROLS */
+.controls{display:flex;align-items:flex-end;gap:10px;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r2);padding:12px 14px;flex-wrap:wrap}
+.cg{display:flex;flex-direction:column;gap:4px}
+.cl{font-size:10px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}
+.ci{font-family:var(--mono);font-size:12px;background:var(--bg3);border:1px solid var(--line2);color:var(--txt);border-radius:var(--r);padding:6px 10px;outline:none;transition:border-color .15s;min-width:110px}
+.ci:focus{border-color:var(--pu-m)}.ci.sm{min-width:66px}
+.cs{font-family:var(--mono);font-size:12px;background:var(--bg3);border:1px solid var(--line2);color:var(--txt);border-radius:var(--r);padding:6px 10px;outline:none;cursor:pointer;min-width:80px}
+.runbtn{font-family:var(--sans);font-size:12px;font-weight:600;padding:7px 18px;background:var(--pu2);color:#fff;border:none;border-radius:var(--r);cursor:pointer;transition:all .15s;white-space:nowrap;margin-top:auto}
+.runbtn:hover{background:var(--pu);transform:translateY(-1px)}.runbtn:active{transform:translateY(0)}
+.runbtn.busy{opacity:.6;cursor:not-allowed}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.mc{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 14px;transition:border-color .2s}
+.mc:hover{border-color:var(--line2)}
+.mc-l{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.mc-v{font-size:22px;font-weight:700;color:var(--txt);letter-spacing:-.5px;line-height:1}
+.mc-v sub{font-size:12px;font-weight:400;color:var(--txt3);margin-left:1px}
+.mc-s{font-size:10.5px;color:var(--txt3);margin-top:4px}
+
+/* PANELS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:14px}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ptitle{font-size:12.5px;font-weight:600;color:var(--txt)}
+.fullpanel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:14px}
+
+/* BAR CHART */
+.chart-area{position:relative;height:190px;display:flex;align-items:flex-end;gap:10px;padding:0 8px;overflow:hidden}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.bar-val{font-size:10px;font-family:var(--mono);white-space:nowrap}
+.bar-body{width:72%;border-radius:4px 4px 0 0;position:relative;min-height:3px;transition:height .6s cubic-bezier(.34,1.56,.64,1)}
+.bar-body::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(to top,rgba(0,0,0,.28),rgba(255,255,255,.07))}
+.bar-lbl{font-size:10px;font-family:var(--mono);text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-grid{position:absolute;inset:0;pointer-events:none}
+
+/* TIMING BREAKDOWN */
+.tbar{display:flex;height:18px;border-radius:5px;overflow:hidden;gap:2px;margin-bottom:10px}
+.tseg{display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;font-family:var(--mono);white-space:nowrap;overflow:hidden;transition:width .5s}
+.brow{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.bl{font-size:11.5px;color:var(--txt2);width:110px;flex-shrink:0}
+.btrack{flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.bfill{height:100%;border-radius:2px;transition:width .5s ease}
+.bv{font-size:11px;color:var(--txt2);width:46px;text-align:right;flex-shrink:0;font-family:var(--mono)}
+.brow.tot{padding-top:7px;border-top:1px solid var(--line);margin-top:3px}
+.brow.tot .bl,.brow.tot .bv{font-weight:600;color:var(--txt)}
+.strat-note{font-size:10.5px;color:var(--txt3);font-family:var(--mono);margin-top:8px;line-height:1.65;padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:2px solid var(--pu);display:none}
+
+/* NODE MONITOR */
+.nr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-g{background:var(--gr)}.dot-r{background:var(--rd);animation:blink .8s infinite}.dot-a{background:var(--am)}
+.nn{font-size:12px;font-weight:500;color:var(--txt);width:110px;flex-shrink:0}
+.ni2{font-size:11px;color:var(--txt3);flex:1;font-family:var(--mono)}
+.kbtn{font-size:10.5px;padding:2px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--txt2);cursor:pointer;background:transparent;font-family:var(--mono);transition:all .15s}
+.kbtn:hover{background:var(--rd-d);color:var(--rd);border-color:var(--rd-m)}.kbtn:disabled{opacity:.35;cursor:not-allowed}
+.fbanner{margin-top:10px;padding:10px 12px;background:var(--rd-d);border:1px solid var(--rd-m);border-radius:var(--r);display:none}
+.fb-title{font-size:11.5px;font-weight:600;color:var(--rd);margin-bottom:3px}
+.fb-msg{font-size:10.5px;color:#c47878;font-family:var(--mono);line-height:1.65}
+.rbtn{margin-top:8px;font-size:10.5px;padding:3px 10px;border-radius:5px;border:1px solid var(--gr-m);color:var(--gr);background:var(--gr-d);cursor:pointer;font-family:var(--mono)}
+
+/* RESULT TABLE */
+.result-wrap{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:14px}
+.rtbl{width:100%;border-collapse:collapse;font-size:12px}
+.rtbl th{text-align:left;font-size:9.5px;font-weight:600;color:var(--txt3);padding:0 8px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase}
+.rtbl td{padding:7px 8px;border-bottom:1px solid var(--line);color:var(--txt);vertical-align:middle}
+.rtbl tr:last-child td{border-bottom:none}
+.rtbl tbody tr:hover td{background:rgba(255,255,255,.02)}
+.avc{display:flex;align-items:center;gap:7px}
+.av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;font-family:var(--mono)}
+.money{font-family:var(--mono);font-size:11px;color:var(--cy);text-align:right}
+.tc{text-align:center}
+
+/* QUERY CODE */
+.qpanel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:14px}
+.qcode{font-family:var(--mono);font-size:11px;color:var(--txt2);line-height:1.82;white-space:pre-wrap;overflow-x:auto;padding:12px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);max-height:280px;overflow-y:auto}
+.kw{color:var(--pu)}.fn{color:var(--cy)}.str{color:var(--am)}.num{color:var(--gr)}.cm{color:var(--txt3)}.op{color:var(--pk)}
+
+/* BENCHMARK TABLE */
+.bench-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.bench-tbl th{text-align:left;font-size:9.5px;font-weight:600;color:var(--txt3);padding:0 8px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.bench-tbl td{padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.bench-tbl tr:last-child td{border-bottom:none}
+.bench-tbl tbody tr:hover td{background:rgba(255,255,255,.02)}
+
+/* MISC */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;color:var(--txt3);gap:8px}
+.empty-icon{font-size:28px;opacity:.4}.empty-text{font-size:12px;font-family:var(--mono)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(167,139,250,.2);border-top-color:var(--pu);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);font-size:12px;font-family:var(--mono);color:var(--txt2);z-index:999;display:none;animation:fadein .2s}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-mark">&#x2B21;</div>
+    <div><div class="sb-logo-text">MultiModel</div><div class="sb-logo-sub">Join v1.0</div></div>
+  </div>
+  <div class="sb-nav">
+    <a class="ni act" id="nav-dash" onclick="navTo(event,'dash')" href="#"><span class="ni-dot"></span>Dashboard</a>
+    <a class="ni" id="nav-bench" onclick="navTo(event,'bench')" href="#"><span class="ni-dot"></span>Benchmark</a>
+    <a class="ni" id="nav-qexplorer" onclick="navTo(event,'qexplorer')" href="#"><span class="ni-dot"></span>Query Explorer</a>
+    <a class="ni" id="nav-schema" onclick="navTo(event,'schema')" href="#"><span class="ni-dot"></span>Schema View</a>
+    <div class="sb-sec">System</div>
+    <a class="ni" id="nav-monitor" onclick="navTo(event,'monitor')" href="#"><span class="ni-dot"></span>Node Monitor</a>
+  </div>
+  <div class="sb-foot"><div class="ldot" id="sys-dot"></div><span id="sys-status">Demo mode</span></div>
+</nav>
+<div class="main-area">
+<div class="topbar">
+  <div class="tbtitle">Kevin Bacon <span>&#8212; cross-model join benchmark</span></div>
+  <div class="api-status"><div class="api-dot" id="api-dot"></div><span id="api-lbl">checking API&#8230;</span></div>
+  <span class="tag tag-pu" id="strat-tag">Graph-first</span>
+  <span class="tag tag-gr" id="time-tag">&#8212;</span>
+</div>
+<div class="content">
+<div class="stabs">
+  <div class="stab s-gf" id="tab-gf" onclick="setTab(event,'gf')">&#x2B21;&nbsp;Graph-first</div>
+  <div class="stab" id="tab-sf" onclick="setTab(event,'sf')">&#x22A0;&nbsp;SQL-first</div>
+  <div class="stab" id="tab-pg" onclick="setTab(event,'pg')">&#x25CE;&nbsp;Pure Graph</div>
+  <div class="stab" id="tab-ps" onclick="setTab(event,'ps')">&#x22A1;&nbsp;Pure SQL</div>
+</div>
+<div class="controls">
+  <div class="cg"><label class="cl">Actor Name</label>
+    <input type="text" id="c-actor" class="ci" value="Kevin Bacon" placeholder="e.g. Tom Hanks">
+  </div>
+  <div class="cg"><label class="cl">BFS Depth</label>
+    <select id="c-depth" class="cs">
+      <option value="1">1 hop</option><option value="2" selected>2 hops</option>
+      <option value="3">3 hops</option><option value="4">4 hops</option>
+    </select>
+  </div>
+  <div class="cg"><label class="cl">Min Revenue ($M)</label>
+    <input type="number" id="c-rev" class="ci sm" value="100" min="0" max="5000" step="10">
+  </div>
+  <div class="cg"><label class="cl">Limit</label>
+    <select id="c-limit" class="cs">
+      <option value="10">10</option><option value="25" selected>25</option>
+      <option value="50">50</option><option value="100">100</option>
+    </select>
+  </div>
+  <div class="cg"><label class="cl">FastAPI Base URL</label>
+    <input type="text" id="c-api" class="ci" value="http://localhost:8000">
+  </div>
+  <button class="runbtn" id="run-btn" onclick="runQuery()">&#x25B6; Run Query</button>
+</div>
+<div class="metrics">
+  <div class="mc"><div class="mc-l">actors found</div><div class="mc-v" id="m-actors">&#8212;</div><div class="mc-s" id="m-actors-s">depth &#8212; hops</div></div>
+  <div class="mc"><div class="mc-l">movies matched</div><div class="mc-v" id="m-movies">&#8212;</div><div class="mc-s">revenue filter applied</div></div>
+  <div class="mc"><div class="mc-l">exec time</div><div class="mc-v" id="m-time">&#8212;<sub> ms</sub></div><div class="mc-s" id="m-strat">waiting&#8230;</div></div>
+  <div class="mc"><div class="mc-l">speed vs pure sql</div><div class="mc-v" id="m-speed">&#8212;<sub>&#215;</sub></div><div class="mc-s">relative gain</div></div>
+  <div class="mc"><div class="mc-l">intermediate set</div><div class="mc-v" id="m-inter">&#8212;</div><div class="mc-s">rows before join</div></div>
+</div>
+<div class="fullpanel">
+  <div class="ph">
+    <span class="ptitle">Execution time comparison &#8212; 4 strategies</span>
+    <span id="chart-sub" style="font-size:10.5px;font-family:var(--mono);color:var(--txt3)">run a query to populate</span>
+    <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--pu);display:inline-block"></span>Graph-first</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--rd);display:inline-block"></span>SQL-first</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>Pure Graph</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2);font-family:var(--mono)"><span style="width:8px;height:8px;border-radius:2px;background:var(--cy);display:inline-block"></span>Pure SQL</span>
+    </div>
+  </div>
+  <div id="chart-area" class="chart-area">
+    <div class="chart-grid" id="chart-grid"></div>
+    <div class="empty-state" id="chart-empty" style="position:absolute;inset:0;width:100%">
+      <div class="empty-icon">&#x25A0;</div>
+      <div class="empty-text">run a query to see comparison chart</div>
+    </div>
+  </div>
+  <div id="chart-xlabels" style="display:none;justify-content:space-around;padding:6px 8px 0;font-size:10px;font-family:var(--mono);color:var(--txt3)">
+    <span>Graph-first</span><span>SQL-first</span><span>Pure Graph</span><span>Pure SQL</span>
+  </div>
+</div>
+<div class="two-col">
+  <div class="panel">
+    <div class="ph">
+      <span class="ptitle">Execution breakdown</span>
+      <span class="tag tag-pu" id="bd-tag">Graph-first</span>
+    </div>
+    <div class="tbar" id="tbar"><div class="tseg" style="width:100%;background:var(--bg3);color:var(--txt3)">run query first</div></div>
+    <div id="bd-rows"><div class="empty-state" style="padding:20px"><div class="empty-text">no data yet</div></div></div>
+    <div class="strat-note" id="strat-note"></div>
+  </div>
+  <div class="panel">
+    <div class="ph">
+      <span class="ptitle">Node monitor</span>
+      <button class="kbtn" id="kill-btn" onclick="killNeo4j()">Stop neo4j</button>
+    </div>
+    <div class="nr"><div class="dot dot-g" id="dot-neo4j"></div><span class="nn">neo4j:5</span><span class="ni2" id="inf-neo4j">7687 &#183; awaiting&#8230;</span><button class="kbtn" onclick="killNeo4j()">Stop</button></div>
+    <div class="nr"><div class="dot dot-g" id="dot-pg"></div><span class="nn">postgres:16</span><span class="ni2" id="inf-pg">5432 &#183; awaiting&#8230;</span><button class="kbtn" onclick="alert('Postgres stop: SQL filter fails \u2192 HTTP 206 partial result.')">Stop</button></div>
+    <div class="nr"><div class="dot dot-g" id="dot-api2"></div><span class="nn">fastapi:8000</span><span class="ni2" id="inf-api">awaiting&#8230;</span><button class="kbtn" onclick="alert('FastAPI down \u2192 502 Bad Gateway on all endpoints.')">Stop</button></div>
+    <div class="fbanner" id="fbanner">
+      <div class="fb-title">&#x26A0; Neo4j unreachable</div>
+      <div class="fb-msg">Connection refused port 7687<br>Fallback mode: Pure SQL CTE<br>Perf impact: &#x21D2; ~13&#xD7; slowdown</div>
+      <button class="rbtn" onclick="restoreNeo4j()">&#x25B6; Restart neo4j</button>
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--txt3);margin-bottom:6px">Last 4 runs (ms)</div>
+      <div style="display:flex;gap:4px;align-items:flex-end;height:30px" id="hist-bars">
+        <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:40%"></div>
+        <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:60%"></div>
+        <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:35%"></div>
+        <div style="flex:1;border-radius:2px 2px 0 0;background:var(--bg3);height:50%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:3px" id="hist-lbls">
+        <span>&#8212;</span><span>&#8212;</span><span>&#8212;</span><span>&#8212;</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="result-wrap">
+  <div class="ph">
+    <span class="ptitle">Query results</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span class="tag tag-am" id="rows-tag">0 rows</span>
+      <span id="spin" style="display:none"><span class="spinner"></span></span>
+    </div>
+  </div>
+  <table class="rtbl">
+    <thead><tr>
+      <th style="width:28%">Actor</th><th style="width:28%">Movie</th>
+      <th style="width:16%;text-align:right">Revenue</th>
+      <th style="width:14%;text-align:center">Bacon #</th>
+      <th style="width:14%;text-align:center">Year</th>
+    </tr></thead>
+    <tbody id="rtbody"><tr><td colspan="5">
+      <div class="empty-state"><div class="empty-icon">&#x25A1;</div>
+      <div class="empty-text">configure controls and click Run Query</div></div>
+    </td></tr></tbody>
+  </table>
+</div>
+<div class="qpanel">
+  <div class="ph">
+    <span class="ptitle">Generated query &#8212; <span id="qlang" style="color:var(--pu)">Cypher + SQL</span></span>
+    <button class="kbtn" onclick="copyQ()">Copy</button>
+  </div>
+  <pre class="qcode" id="qcode">-- Select a strategy tab and run a query</pre>
+</div>
+<div class="fullpanel">
+  <div class="ph"><span class="ptitle">Benchmark statistics &#8212; estimated 10-run averages</span><span class="tag tag-am">depth=2 &#183; 1M nodes &#183; 10M edges</span></div>
+  <table class="bench-tbl">
+    <thead><tr><th>Strategy</th><th style="text-align:right">Min</th><th style="text-align:right">Avg</th><th style="text-align:right">Max</th><th style="text-align:right">P95</th><th style="text-align:center">vs Pure SQL</th><th>Intermediate set</th></tr></thead>
+    <tbody>
+      <tr><td><span style="font-weight:600;color:var(--pu)">&#x2B21; Graph-first</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">BFS &#x2192; SQL WHERE IN</span></td><td style="text-align:right;font-family:var(--mono);color:var(--gr)">118ms</td><td style="text-align:right;font-family:var(--mono);color:var(--gr);font-weight:600">142ms</td><td style="text-align:right;font-family:var(--mono)">198ms</td><td style="text-align:right;font-family:var(--mono)">185ms</td><td style="text-align:center"><span class="tag tag-gr">12.9&#xD7; faster</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--cy)">~284 IDs</td></tr>
+      <tr><td><span style="font-weight:600;color:var(--am)">&#x25CE; Pure Graph</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">Cypher only in Neo4j</span></td><td style="text-align:right;font-family:var(--mono);color:var(--gr)">160ms</td><td style="text-align:right;font-family:var(--mono);color:var(--am);font-weight:600">190ms</td><td style="text-align:right;font-family:var(--mono)">230ms</td><td style="text-align:right;font-family:var(--mono)">220ms</td><td style="text-align:center"><span class="tag tag-am">9.7&#xD7; faster</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--cy)">~284 nodes</td></tr>
+      <tr><td><span style="font-weight:600;color:var(--rd)">&#x22A0; SQL-first</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">SQL scan &#x2192; N&#xD7; graph lookup</span></td><td style="text-align:right;font-family:var(--mono)">720ms</td><td style="text-align:right;font-family:var(--mono);color:var(--rd);font-weight:600">820ms</td><td style="text-align:right;font-family:var(--mono)">1,100ms</td><td style="text-align:right;font-family:var(--mono)">1,050ms</td><td style="text-align:center"><span class="tag tag-rd">2.2&#xD7; faster</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--rd)">~12,000 rows</td></tr>
+      <tr><td><span style="font-weight:600;color:var(--cy)">&#x22A1; Pure SQL</span><br><span style="font-size:10.5px;color:var(--txt3);font-family:var(--mono)">Recursive CTE, no graph engine</span></td><td style="text-align:right;font-family:var(--mono)">1,520ms</td><td style="text-align:right;font-family:var(--mono);color:var(--am);font-weight:600">1,840ms</td><td style="text-align:right;font-family:var(--mono)">2,400ms</td><td style="text-align:right;font-family:var(--mono)">2,200ms</td><td style="text-align:center"><span class="tag tag-rd">baseline</span></td><td style="font-family:var(--mono);font-size:11px;color:var(--rd)">full self-joins</td></tr>
+    </tbody>
+  </table>
+</div>
+</div></div></div>
+<div class="toast" id="toast"></div>
+<script>
+var S={tab:'gf',apiBase:'http://localhost:8000',neo4jUp:true,hist:[],bench:null,results:[]};
+var TC={
+  gf:{label:'Graph-first',cls:'s-gf',tc:'tag-pu',color:'#a78bfa'},
+  sf:{label:'SQL-first',  cls:'s-sf',tc:'tag-rd',color:'#f87171'},
+  pg:{label:'Pure Graph', cls:'s-pg',tc:'tag-am',color:'#fbbf24'},
+  ps:{label:'Pure SQL',   cls:'s-ps',tc:'tag-cy',color:'#22d3ee'}
+};
+var LANGS={gf:'Cypher + SQL',sf:'SQL + Cypher N\u00d7',pg:'Cypher only',ps:'Recursive CTE (SQL only)'};
+
+// ── NAV ──
+function navTo(e,id){e.preventDefault();document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('act')});document.getElementById('nav-'+id).classList.add('act')}
+
+// ── TAB SWITCH ──
+function setTab(e,t){
+  S.tab=t;
+  ['gf','sf','pg','ps'].forEach(function(k){
+    var el=document.getElementById('tab-'+k);
+    el.className='stab'+(k===t?' '+TC[k].cls:'');
+  });
+  var c=TC[t];
+  var st=document.getElementById('strat-tag');
+  st.textContent=c.label; st.className='tag '+c.tc;
+  var bd=document.getElementById('bd-tag');
+  bd.textContent=c.label; bd.className='tag '+c.tc;
+  document.getElementById('qlang').textContent=LANGS[t];
+  document.getElementById('qlang').style.color=c.color;
+  document.getElementById('strat-note').style.borderLeftColor=c.color;
+  updateQCode();
+  if(S.bench)updateBreakdown(t,S.bench);
+  if(S.bench)drawChart(S.bench);
+}
+
+// ── CONTROLS ──
+function ctrl(){
+  return{
+    actor:document.getElementById('c-actor').value.trim()||'Kevin Bacon',
+    depth:document.getElementById('c-depth').value,
+    rev:(parseInt(document.getElementById('c-rev').value)||100)*1000000,
+    limit:document.getElementById('c-limit').value
+  };
+}
+
+// ── QUERY CODE GENERATOR ──
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function kw(s){return'<span class="kw">'+s+'</span>'}
+function fn(s){return'<span class="fn">'+s+'</span>'}
+function st(s){return'<span class="str">'+s+'</span>'}
+function nm(s){return'<span class="num">'+s+'</span>'}
+function cm(s){return'<span class="cm">'+s+'</span>'}
+
+function buildQuery(t,c){
+  var a=c.actor,d=c.depth,r=c.rev.toLocaleString(),l=c.limit;
+  if(t==='gf') return[
+    cm('-- Step 1: Cypher (Neo4j) \u2014 BFS traversal'),
+    kw('MATCH')+' (kb:'+fn('Actor')+' {'+st('name')+': '+st('"'+a+'"')+'})'+
+    '\n      -[:'+kw('ACTED_IN')+'*'+nm('1..'+d)+']->(co:'+fn('Actor')+')',
+    kw('RETURN')+' '+kw('DISTINCT')+' co.actor_id '+kw('AS')+' id',
+    cm('-- \u2192 returns ~100\u2013500 IDs only'),
+    '',
+    cm('-- Step 2: SQL (PostgreSQL) \u2014 revenue filter'),
+    kw('SELECT')+' a.name, m.title, m.revenue, bn.depth',
+    kw('FROM')+' actors a',
+    kw('JOIN')+' cast_rel cr  '+kw('ON')+' cr.actor_id = a.id',
+    kw('JOIN')+' movies   m   '+kw('ON')+' m.id = cr.movie_id',
+    kw('WHERE')+' a.id '+kw('IN')+' (:'+st('bacon_ids')+')',
+    '  '+kw('AND')+' m.revenue > '+nm(r),
+    kw('ORDER BY')+' m.revenue '+kw('DESC')+' '+kw('LIMIT')+' '+nm(l)+';'
+  ].join('\n');
+  if(t==='sf') return[
+    cm('-- Step 1: SQL \u2014 scan qualifying actors (LARGE SET!)'),
+    kw('SELECT')+' '+kw('DISTINCT')+' cr.actor_id',
+    kw('FROM')+' cast_rel cr',
+    kw('JOIN')+' movies m '+kw('ON')+' m.id = cr.movie_id',
+    kw('WHERE')+' m.revenue > '+nm(r)+';',
+    cm('-- \u2192 may return 5,000\u201315,000 actor candidates!'),
+    '',
+    cm('-- Step 2: Cypher called \u00d7N per actor (BOTTLENECK)'),
+    kw('MATCH')+' path = (:'+fn('Actor')+'{'+st('id')+':'+st('$id')+'})'+
+    '\n             -[:'+kw('ACTED_IN')+'*'+nm('1..'+d)+']->'+
+    '\n             (:'+fn('Actor')+'{'+st('name')+':'+st('"'+a+'"')+'})',
+    kw('RETURN')+' '+fn('length')+'(path) '+kw('AS')+' bacon_num',
+    cm('-- O(N \u00d7 BFS): 10K actors \u00d7 0.04ms each = 400ms bottleneck')
+  ].join('\n');
+  if(t==='pg') return[
+    cm('-- Pure Graph: Cypher only in Neo4j (revenue as node property)'),
+    kw('MATCH')+' (kb:'+fn('Actor')+'{'+st('name')+':'+st('"'+a+'"')+'})',
+    '      -[:'+kw('ACTED_IN')+'*'+nm('1..'+d)+']->(co:'+fn('Actor')+')',
+    '      -[:'+kw('ACTED_IN')+']->(m:'+fn('Movie')+')',
+    kw('WHERE')+' m.revenue > '+nm(r),
+    '  '+kw('AND')+' co <> kb',
+    kw('RETURN')+' '+kw('DISTINCT'),
+    '  co.name    '+kw('AS')+' actor_name,',
+    '  m.title    '+kw('AS')+' movie_title,',
+    '  m.revenue  '+kw('AS')+' revenue,',
+    '  m.year     '+kw('AS')+' year,',
+    '  '+fn('length')+'('+fn('shortestPath')+'((kb)-[:'+kw('ACTED_IN')+'*]->(co)))',
+    '             '+kw('AS')+' bacon_num',
+    kw('ORDER BY')+' m.revenue '+kw('DESC')+' '+kw('LIMIT')+' '+nm(l)
+  ].join('\n');
+  // ps
+  return[
+    cm('-- Pure SQL: Recursive CTE (PostgreSQL only, no Neo4j)'),
+    kw('WITH RECURSIVE')+' bacon_net '+kw('AS')+'(',
+    '  '+cm('-- Anchor: direct co-actors of "'+a+'"'),
+    '  '+kw('SELECT')+' cr2.actor_id, '+nm('1')+' '+kw('AS')+' depth,',
+    '         '+kw('ARRAY')+'[kb.id, cr2.actor_id] '+kw('AS')+' visited',
+    '  '+kw('FROM')+' actors kb',
+    '  '+kw('JOIN')+' cast_rel cr1 '+kw('ON')+' cr1.actor_id = kb.id',
+    '  '+kw('JOIN')+' cast_rel cr2 '+kw('ON')+' cr2.movie_id  = cr1.movie_id',
+    '  '+kw('WHERE')+' kb.name = '+st("'"+a+"'"),
+    '    '+kw('AND')+' cr2.actor_id <> kb.id',
+    '  '+kw('UNION ALL'),
+    '  '+cm('-- Recursive: extend network hop-by-hop'),
+    '  '+kw('SELECT')+' cr4.actor_id, bn.depth+'+nm('1')+',',
+    '         bn.visited || cr4.actor_id',
+    '  '+kw('FROM')+' bacon_net bn',
+    '  '+kw('JOIN')+' cast_rel cr3 '+kw('ON')+' cr3.actor_id = bn.actor_id',
+    '  '+kw('JOIN')+' cast_rel cr4 '+kw('ON')+' cr4.movie_id  = cr3.movie_id',
+    '  '+kw('WHERE')+' bn.depth < '+nm(d),
+    '    '+kw('AND NOT')+'(cr4.actor_id = '+kw('ANY')+'(bn.visited))',
+    ')',
+    kw('SELECT')+' a.name, m.title, m.revenue, bn.depth '+kw('AS')+' bacon_num',
+    kw('FROM')+' bacon_net bn',
+    kw('JOIN')+' actors    a  '+kw('ON')+' a.id = bn.actor_id',
+    kw('JOIN')+' cast_rel  cr '+kw('ON')+' cr.actor_id = a.id',
+    kw('JOIN')+' movies    m  '+kw('ON')+' m.id = cr.movie_id',
+    kw('WHERE')+' m.revenue > '+nm(r),
+    kw('ORDER BY')+' m.revenue '+kw('DESC')+' '+kw('LIMIT')+' '+nm(l)+';'
+  ].join('\n');
+}
+function updateQCode(){var c=ctrl();document.getElementById('qcode').innerHTML=buildQuery(S.tab,c);}
+
+// ── API HEALTH ──
+async function checkHealth(){
+  var base=document.getElementById('c-api').value.trim();S.apiBase=base;
+  try{
+    var r=await fetch(base+'/health',{signal:AbortSignal.timeout(3000)});
+    if(r.ok){var d=await r.json();setConn(true,d);}else setConn(false,null);
+  }catch(e){setConn(false,null);}
+}
+function setConn(ok,d){
+  var ad=document.getElementById('api-dot'),al=document.getElementById('api-lbl');
+  var sysDot=document.getElementById('sys-dot'),sysSt=document.getElementById('sys-status');
+  var apiNode=document.getElementById('dot-api2'),apiInf=document.getElementById('inf-api');
+  if(ok){
+    ad.className='api-dot ok';al.textContent='FastAPI connected';
+    sysDot.className='ldot';sysSt.textContent='All nodes healthy';
+    apiNode.className='dot dot-g';apiInf.textContent='8000 \u00b7 healthy'+(d&&d.version?' \u00b7 v'+d.version:'');
+    if(d){
+      var neo=d.neo4j!==undefined?d.neo4j:true;
+      document.getElementById('dot-neo4j').className='dot '+(neo?'dot-g':'dot-r');
+      document.getElementById('inf-neo4j').textContent=neo?('7687 \u00b7 '+(d.neo4j_nodes||'ok')):'unreachable';
+      var pg=d.postgres!==undefined?d.postgres:true;
+      document.getElementById('dot-pg').className='dot '+(pg?'dot-g':'dot-r');
+      document.getElementById('inf-pg').textContent=pg?('5432 \u00b7 '+(d.pg_rows||'ok')):'unreachable';
+    }
+  }else{
+    ad.className='api-dot err';al.textContent='API offline \u2014 mock data';
+    sysSt.textContent='Demo mode';apiNode.className='dot dot-a';apiInf.textContent='offline \u00b7 mock mode';
+  }
+}
+
+// ── RUN QUERY ──
+async function runQuery(){
+  var c=ctrl(),btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.classList.add('busy');btn.textContent='Running\u2026';
+  document.getElementById('spin').style.display='inline-block';
+  var t0=performance.now();
+  try{
+    var url=S.apiBase+'/query/bacon?'+new URLSearchParams({actor:c.actor,depth:c.depth,min_revenue:c.rev,limit:c.limit,strategy:S.tab});
+    var r=await fetch(url,{signal:AbortSignal.timeout(30000)});
+    var elapsed=performance.now()-t0;
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var data=await r.json();
+    setConn(true,null);handleResult(data,elapsed);
+  }catch(err){
+    var elapsed=performance.now()-t0;
+    toast('API offline \u2014 showing mock data');
+    handleResult(mockData(c),null);
+  }finally{
+    btn.disabled=false;btn.classList.remove('busy');btn.textContent='\u25b6 Run Query';
+    document.getElementById('spin').style.display='none';
+  }
+}
+
+function handleResult(data,clientMs){
+  var b=data.benchmark||mockBench(clientMs);
+  S.bench=b;S.results=data.results||[];
+  var ms=b[S.tab]||clientMs||150;
+  var psMs=b.ps||1840;
+  var spd=psMs/ms;
+  // metrics
+  iH('m-actors',data.actors_found||S.results.length);
+  document.getElementById('m-actors-s').textContent='depth '+ctrl().depth+' hops';
+  iH('m-movies',data.movies_matched||S.results.length);
+  iH('m-time',Math.round(ms)+'<sub> ms</sub>');
+  document.getElementById('m-strat').textContent=TC[S.tab].label;
+  iH('m-speed',spd.toFixed(1)+'<sub>\u00d7</sub>');
+  iH('m-inter',(data.intermediate_set||'?')+' rows');
+  var tt=document.getElementById('time-tag');
+  tt.textContent=Math.round(ms)+' ms';
+  tt.className='tag '+(ms<300?'tag-gr':ms<800?'tag-am':'tag-rd');
+  document.getElementById('chart-sub').textContent=
+    'actor: '+ctrl().actor+' \u00b7 depth: '+ctrl().depth+' \u00b7 min $'+document.getElementById('c-rev').value+'M';
+  drawChart(b);
+  updateBreakdown(S.tab,b);
+  renderTable(S.results);
+  S.hist.push(Math.round(ms));
+  if(S.hist.length>4)S.hist=S.hist.slice(-4);
+  renderHist();
+}
+
+function iH(id,h){var e=document.getElementById(id);if(e)e.innerHTML=h;}
+
+// ── MOCK DATA ──
+function mockBench(ms){
+  var base=ms||(120+Math.random()*50);
+  return{gf:Math.round(base),sf:Math.round(base*5.8),pg:Math.round(base*1.35),ps:Math.round(base*12.9)};
+}
+function mockData(c){
+  var pool=[
+    {name:'Tom Hanks',initials:'TH',ab:'rgba(167,139,250,.15)',af:'#a78bfa',movie:'Forrest Gump',revenue:678e6,year:1994,bacon:1},
+    {name:'Keira Knightley',initials:'KK',ab:'rgba(244,114,182,.12)',af:'#f472b6',movie:'Pirates of Caribbean',revenue:654e6,year:2003,bacon:2},
+    {name:'Julia Roberts',initials:'JR',ab:'rgba(74,222,128,.1)',af:'#4ade80',movie:'Pretty Woman',revenue:463e6,year:1990,bacon:1},
+    {name:'Denzel Washington',initials:'DW',ab:'rgba(34,211,238,.1)',af:'#22d3ee',movie:'Philadelphia',revenue:206e6,year:1993,bacon:1},
+    {name:'Gene Hackman',initials:'GH',ab:'rgba(251,191,36,.1)',af:'#fbbf24',movie:'The Firm',revenue:270e6,year:1993,bacon:2},
+    {name:'Matt Damon',initials:'MD',ab:'rgba(248,113,113,.1)',af:'#f87171',movie:'Good Will Hunting',revenue:225e6,year:1997,bacon:2},
+    {name:'Gary Oldman',initials:'GO',ab:'rgba(167,139,250,.1)',af:'#a78bfa',movie:'Air Force One',revenue:315e6,year:1997,bacon:1},
+    {name:'Robin Wright',initials:'RW',ab:'rgba(34,211,238,.08)',af:'#22d3ee',movie:'Forrest Gump',revenue:678e6,year:1994,bacon:2}
+  ].filter(function(r){return r.revenue>=c.rev&&r.bacon<=parseInt(c.depth)}).slice(0,parseInt(c.limit));
+  return{
+    results:pool,actors_found:pool.length+Math.floor(Math.random()*200+50),
+    movies_matched:pool.length,
+    intermediate_set:S.tab==='gf'||S.tab==='pg'?Math.floor(Math.random()*300+100):Math.floor(Math.random()*10000+5000),
+    benchmark:mockBench(null)
+  };
+}
+
+// ── CHART ──
+function drawChart(b){
+  var area=document.getElementById('chart-area');
+  document.getElementById('chart-empty').style.display='none';
+  document.getElementById('chart-xlabels').style.display='flex';
+  area.querySelectorAll('.bar-col').forEach(function(e){e.remove()});
+  var vals=[
+    {key:'gf',label:'Graph-first',ms:b.gf||0,color:'#a78bfa'},
+    {key:'sf',label:'SQL-first',ms:b.sf||0,color:'#f87171'},
+    {key:'pg',label:'Pure Graph',ms:b.pg||0,color:'#fbbf24'},
+    {key:'ps',label:'Pure SQL',ms:b.ps||0,color:'#22d3ee'}
+  ];
+  var maxMs=Math.max.apply(null,vals.map(function(v){return v.ms}))||1;
+  var maxH=150;
+  var grid=document.getElementById('chart-grid');
+  grid.innerHTML=[0.25,0.5,0.75,1.0].map(function(f){
+    return '<div style="position:absolute;bottom:'+(f*maxH)+'px;left:0;right:0;border-top:1px dashed rgba(255,255,255,.05)">'
+      +'<span style="font-size:9px;font-family:var(--mono);color:var(--txt3);background:var(--bg2);padding:0 3px">'+Math.round(maxMs*f)+'ms</span></div>';
+  }).join('');
+  vals.forEach(function(v){
+    var h=Math.max(v.ms/maxMs*maxH,3);
+    var isA=S.tab===v.key;
+    var col=document.createElement('div');
+    col.className='bar-col';
+    col.innerHTML='<div class="bar-val" style="color:'+v.color+(isA?';font-weight:700':'')+'">'+Math.round(v.ms)+'ms</div>'
+      +'<div class="bar-body" style="height:'+h+'px;background:'+v.color+';opacity:'+(isA?1:.38)+'"></div>'
+      +'<div class="bar-lbl" style="color:'+(isA?v.color:'var(--txt3)')+';font-weight:'+(isA?600:400)+'">'+v.label+'</div>';
+    area.appendChild(col);
+  });
+}
+
+// ── BREAKDOWN ──
+var BD={
+  gf:[{l:'Graph BFS',p:35,c:'#a78bfa'},{l:'Net transfer',p:28,c:'#4ade80'},{l:'SQL filter',p:37,c:'#5ba3f5'}],
+  sf:[{l:'SQL scan',p:30,c:'#5ba3f5'},{l:'Net transfer',p:20,c:'#4ade80'},{l:'N\u00d7Graph lookup',p:50,c:'#f87171'}],
+  pg:[{l:'Cypher BFS',p:55,c:'#fbbf24'},{l:'Rev. filter',p:30,c:'#f87171'},{l:'Sort+return',p:15,c:'#a78bfa'}],
+  ps:[{l:'CTE anchor',p:15,c:'#22d3ee'},{l:'Recursive join',p:65,c:'#f87171'},{l:'Final filter',p:20,c:'#5ba3f5'}]
+};
+var BN={
+  gf:'\u25b8 Small BFS result (~200\u2013500 IDs) \u2192 SQL WHERE IN is cheap. Best cross-model strategy O(V+E).',
+  sf:'\u25b8 SQL returns 5K\u201315K candidates \u2192 N\u00d7graph lookups = bottleneck. Avoid for large datasets.',
+  pg:'\u25b8 All logic stays in Neo4j. Revenue must be a node property. No SQL overhead. 2nd best.',
+  ps:'\u25b8 Recursive CTE rewrites graph as relational. E\u00b2 self-joins \u2192 slowest (13\u00d7). Fallback when Neo4j is down.'
+};
+function updateBreakdown(t,b){
+  var ms=(b&&b[t])||0,defs=BD[t];
+  var tbar=document.getElementById('tbar');
+  tbar.innerHTML=defs.map(function(d){
+    return'<div class="tseg" style="width:'+d.p+'%;background:'+d.c+'22;color:'+d.c+'">'+d.l+' '+Math.round(ms*d.p/100)+'ms</div>';
+  }).join('');
+  var rows=document.getElementById('bd-rows');
+  rows.innerHTML=defs.map(function(d){
+    return'<div class="brow"><span class="bl">'+d.l+'</span>'
+      +'<div class="btrack"><div class="bfill" style="width:'+d.p+'%;background:'+d.c+'"></div></div>'
+      +'<span class="bv">'+Math.round(ms*d.p/100)+' ms</span></div>';
+  }).join('')
+  +'<div class="brow tot"><span class="bl">Total</span>'
+  +'<div class="btrack"><div class="bfill" style="width:100%;background:'+TC[t].color+';opacity:.3"></div></div>'
+  +'<span class="bv">'+Math.round(ms)+' ms</span></div>';
+  var note=document.getElementById('strat-note');
+  note.textContent=BN[t];note.style.display='block';note.style.borderLeftColor=TC[t].color;
+}
+
+// ── TABLE ──
+var AVC=[['rgba(167,139,250,.15)','#a78bfa'],['rgba(34,211,238,.1)','#22d3ee'],['rgba(74,222,128,.1)','#4ade80'],
+         ['rgba(248,113,113,.1)','#f87171'],['rgba(251,191,36,.1)','#fbbf24'],['rgba(244,114,182,.1)','#f472b6']];
+function renderTable(rows){
+  var tb=document.getElementById('rtbody');
+  var ct=document.getElementById('rows-tag');
+  if(!rows||!rows.length){
+    tb.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-text">no results matched your filters</div></div></td></tr>';
+    ct.textContent='0 rows';return;
+  }
+  ct.textContent=rows.length+' rows';
+  tb.innerHTML=rows.map(function(r,i){
+    var ac=AVC[i%AVC.length];
+    var ini=r.initials||(r.name||'??').split(' ').slice(0,2).map(function(w){return(w||'?')[0];}).join('');
+    var rev=r.revenue||0;
+    var rs=rev>=1e9?'$'+(rev/1e9).toFixed(2)+'B':'$'+Math.round(rev/1e6)+'M';
+    var bn=r.bacon||r.bacon_num||r.depth||'?';
+    var bc=bn<=1?'tag-pu':bn<=2?'tag-cy':'tag-am';
+    return'<tr>'
+      +'<td><div class="avc"><div class="av" style="background:'+ac[0]+';color:'+ac[1]+'">'+ini+'</div>'+(r.name||r.actor_name||'\u2014')+'</div></td>'
+      +'<td>'+(r.movie||r.movie_title||'\u2014')+'</td>'
+      +'<td class="money">'+rs+'</td>'
+      +'<td class="tc"><span class="tag '+bc+'">'+bn+'</span></td>'
+      +'<td class="tc" style="font-family:var(--mono);font-size:11px;color:var(--txt3)">'+(r.year||'\u2014')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ── HISTORY BARS ──
+function renderHist(){
+  var h=S.hist;while(h.length<4)h.unshift(0);
+  var r4=h.slice(-4),max=Math.max.apply(null,r4)||1;
+  var c=document.getElementById('hist-bars'),l=document.getElementById('hist-lbls');
+  c.innerHTML=r4.map(function(v,i){
+    var pct=v/max*100,isL=i===r4.length-1;
+    return'<div style="flex:1;border-radius:2px 2px 0 0;background:'+(isL?TC[S.tab].color:'rgba(167,139,250,.22)')+';height:'+Math.max(pct,5)+'%"></div>';
+  }).join('');
+  l.innerHTML=r4.map(function(v){return'<span>'+(v>0?v+'ms':'\u2014')+'</span>';}).join('');
+}
+
+// ── NODE KILL/RESTORE ──
+function killNeo4j(){
+  if(!S.neo4jUp)return;S.neo4jUp=false;
+  document.getElementById('dot-neo4j').className='dot dot-r';
+  document.getElementById('inf-neo4j').textContent='STOPPED \u2014 connection refused';
+  document.getElementById('fbanner').style.display='block';
+  document.getElementById('sys-dot').className='ldot dead';
+  document.getElementById('sys-status').textContent='1 node down';
+  document.getElementById('kill-btn').disabled=true;
+  document.getElementById('kill-btn').textContent='Stopped';
+  document.getElementById('time-tag').className='tag tag-rd';
+  document.getElementById('time-tag').textContent='503 Error';
+  S.hist.push(0);if(S.hist.length>4)S.hist=S.hist.slice(-4);renderHist();
+  toast('Neo4j stopped \u2014 fallback Pure SQL CTE. Expect 13\u00d7 slowdown.');
+}
+function restoreNeo4j(){
+  S.neo4jUp=true;
+  document.getElementById('dot-neo4j').className='dot dot-g';
+  document.getElementById('inf-neo4j').textContent='7687 \u00b7 reconnecting\u2026';
+  document.getElementById('fbanner').style.display='none';
+  document.getElementById('sys-dot').className='ldot';
+  document.getElementById('sys-status').textContent='All nodes healthy';
+  document.getElementById('kill-btn').disabled=false;
+  document.getElementById('kill-btn').textContent='Stop neo4j';
+  toast('Neo4j restarted successfully.');
+  setTimeout(checkHealth,600);
+}
+
+// ── UTILS ──
+function copyQ(){navigator.clipboard.writeText(document.getElementById('qcode').textContent).then(function(){toast('Query copied!');});}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
+
+// ── INIT ──
+window.addEventListener('load',function(){
+  updateQCode();
+  checkHealth();
+  ['c-actor','c-depth','c-rev','c-limit'].forEach(function(id){
+    document.getElementById(id).addEventListener('input',updateQCode);
+  });
+  document.getElementById('c-api').addEventListener('change',checkHealth);
+  setInterval(checkHealth,30000);
+});
+</script>
+</body></html>
